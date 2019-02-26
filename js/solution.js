@@ -98,7 +98,7 @@ function switchMode(mode) {
 			item.style.display = 'none';
 		}
 	}
-	menu.querySelector(`.${mode}-tools`).style.display = 'inline-block'
+	menu.querySelector(`.${mode}-tools`).style.display = 'inline-block';
 }
 
 menu.querySelector('.burger').addEventListener('click', onBurgerBtnClick);
@@ -113,6 +113,26 @@ function onBurgerBtnClick(e) {
 		item.style.display = 'inline-block';
 	}
 }
+
+// comments mode
+const commentsTools = menu.querySelector('.comments-tools');
+console.log(commentsTools.querySelectorAll('.menu__toggle-bg'))
+commentsTools.querySelectorAll('.menu__toggle')[0].addEventListener('change', e => {
+	app.querySelector('.comments__form').style.display = 'block';
+})
+
+commentsTools.querySelectorAll('.menu__toggle')[1].addEventListener('change', e => {
+	app.querySelector('.comments__form').style.display = 'none';
+})
+
+// share mode
+const shareTools = menu.querySelector('.share-tools');
+shareTools.querySelector('[type="button"]').addEventListener('click', function () {
+	event.preventDefault();
+	shareTools.querySelector('[type="text"]').select();
+	document.execCommand("copy");
+})
+
 
 // перетаскивание меню
 console.log(menu.querySelector('.drag'))
