@@ -21,10 +21,10 @@ function setDefaults() {
 
 // backgorund
 const backgorund = app.querySelector('.current-image');
-app.addEventListener('dragover', e => {
-	e.preventDefault()});
+// app.addEventListener('dragover', e => {
+// 	e.preventDefault()});
 
-app.addEventListener('drop', makeBG);
+// app.addEventListener('drop', makeBG);
 
 function makeBG(e) {
 	e.preventDefault();
@@ -47,31 +47,32 @@ function sendPic(pic) {
 
 
 	const formData = new FormData();
-	formData.append('pic', pic);
+	formData.append('title', pic.name);
+	formData.append('image', pic);
 
-	const myHeaders = new Headers({
-	  "Content-Type": "multipart/form-data",
+	// const myHeaders = new Headers({
+	//   "Content-Type": "multipart/form-data",
 
-	});
-
-	// const xhr = new XMLHttpRequest();
-	// xhr.open('POST', 'https://neto-api.herokuapp.com/pic');
-	// xhr.setRequestHeader('Content-Type', 'multipart/form-data');
-
-	// xhr.addEventListener('load', () => {
-	// if (xhr.status === 200){
-	// 	console.log(`Файл ${pic.name} сохранен.`);
-	// }
 	// });
-	// xhr.send(formData);
 
-  fetch('https://neto-api.herokuapp.com/pic', {
-    method: 'POST',
-    body: {title: pic.name,
-    	image: pic}
-  })
-  .then((res) => {console.log(res)})
-  .catch((err) => {console.log(err)})
+	const xhr = new XMLHttpRequest();
+	xhr.open('POST', 'https://neto-api.herokuapp.com/pic');
+	xhr.setRequestHeader('Content-Type', 'multipart/form-data');
+
+	xhr.addEventListener('load', () => {
+	if (xhr.status === 200){
+		console.log(`Файл ${pic.name} сохранен.`);
+	}
+	});
+	xhr.send(formData);
+
+  // fetch('https://neto-api.herokuapp.com/pic', {
+  //   method: 'POST',
+  //   body: {title: pic.name,
+  //   	image: pic}
+  // })
+  // .then((res) => {console.log(res)})
+  // .catch((err) => {console.log(err)})
 }
 
 
@@ -101,8 +102,8 @@ function switchMode(mode) {
 	menu.querySelector(`.${mode}-tools`).style.display = 'inline-block';
 }
 
-menu.querySelector('.burger').addEventListener('click', onBurgerBtnClick);
 
+menu.querySelector('.burger').addEventListener('click', onBurgerBtnClick);
 function onBurgerBtnClick(e) {
 	const menuTools = Array.from(menu.querySelectorAll('.tool'));
 	for (let item of menuTools) {
@@ -114,27 +115,219 @@ function onBurgerBtnClick(e) {
 	}
 }
 
+// new mode
+const newMode = menu.querySelector('.new');
+const input = document.createElement('input')
+input.setAttribute('type', 'file');
+input.setAttribute('accept', 'image/jpeg, image/png');
+// input.style.opacity = '0';
+// newMode.appendChild(input);
+input.addEventListener('change', e => {
+	const pic = event.currentTarget.files[0];
+	console.log(pic.name)
+	sendPic(pic)
+})
+
+newMode.addEventListener('click', e=> {
+	input.click();
+})
+
+
+// draw mode
+const colors = menu.querySelector('.draw-tools').querySelectorAll('[name="color"]');
+let currentColor = 'green';
+for (let color of colors) {
+	color.addEventListener('change', e => {
+		currentColor = e.target.value;
+	});
+}
+
+
 // comments mode
 const commentsTools = menu.querySelector('.comments-tools');
-console.log(commentsTools.querySelectorAll('.menu__toggle-bg'))
+// comments off
 commentsTools.querySelectorAll('.menu__toggle')[0].addEventListener('change', e => {
 	app.querySelector('.comments__form').style.display = 'block';
 })
 
+// comments on
 commentsTools.querySelectorAll('.menu__toggle')[1].addEventListener('change', e => {
 	app.querySelector('.comments__form').style.display = 'none';
 })
 
+
 // share mode
 const shareTools = menu.querySelector('.share-tools');
-shareTools.querySelector('[type="button"]').addEventListener('click', function () {
-	event.preventDefault();
+shareTools.querySelector('[type="button"]').addEventListener('click', e => {
+	e.preventDefault();
 	shareTools.querySelector('[type="text"]').select();
 	document.execCommand("copy");
 })
 
 
 // перетаскивание меню
-console.log(menu.querySelector('.drag'))
-// menu.querySelector('.drag').setAttribute('draggable', 'true')
-menu.setAttribute('draggable', 'true')
+
+let isDragMenu = false;
+let minY, minX, maxX, maxY;
+let shiftX = 0;
+let shiftY = 0;
+
+const dragStart = event => {
+	if (event.target.classList.contains('drag')) {
+		isDragMenu = true;
+	    minY = app.offsetTop;
+	    minX = app.offsetLeft;
+	    maxX = app.offsetLeft + app.offsetWidth - menu.offsetWidth - 1;
+	    maxY = app.offsetTop + app.offsetHeight - menu.offsetHeight;
+	    shiftX = event.pageX - menu.getBoundingClientRect().left - window.pageXOffset;
+	    shiftY = event.pageY - menu.getBoundingClientRect().top - window.pageYOffset;
+	  }
+};
+
+function throttle(callback) {
+  let isWaiting = false;
+  return function () {
+    if (!isWaiting) {
+      callback.apply(this, arguments);
+      isWaiting = true;
+      requestAnimationFrame(() => {
+        isWaiting = false;
+      });
+    }
+  };
+}
+
+const drag = throttle((x, y) => {
+  if (isDragMenu) {
+    x = x - shiftX;
+    y = y - shiftY;
+    x = Math.min(x, maxX);
+    y = Math.min(y, maxY);
+    x = Math.max(x, minX);
+    y = Math.max(y, minY);
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+  }
+});
+
+
+function drop(e) {
+	isDragMenu = false;
+}
+
+document.addEventListener('mousedown', dragStart);
+document.addEventListener('mousemove', e => drag(event.pageX, event.pageY));
+document.addEventListener('mouseup', drop);
+
+document.addEventListener('touchstart', event => dragStart(event.touches[0]));
+document.addEventListener('touchmove', event => drag(event.touches[0].pageX, event.touches[0].pageY));
+document.addEventListener('touchend', event => drop(event.changedTouches[0]));
+
+
+// рисование
+
+
+// const canvas = document.getElementById('draw');
+// const ctx = canvas.getContext('2d');
+
+// canvas.width = window.outerWidth; 
+// canvas.height = window.outerHeight;
+
+// let brushSize = 4;
+// let curves = [];
+// let drawing = false;
+// let changeBrushFlag = 'down';
+// let colorLineFlag = 'up'; 
+// let hue = 0; 
+// let needsRepaint = false;
+
+
+// document.addEventListener('keydown', (e) => {
+//   if (e.shiftKey) {
+//     colorLineFlag = 'down';
+//   }
+// });
+
+// function circle(point) {
+//     ctx.beginPath();
+//     ctx.fillStyle = `hsl(${point.hue}, 100%, 50%)`;
+//     ctx.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
+//     ctx.fill();
+// }
+
+// function smoothCurveBetween(p1, p2) {
+//     ctx.strokeStyle = `hsl(${p1.hue}, 100%, 50%)`;
+//     ctx.lineWidth = p1.brushSize;
+//     ctx.beginPath();
+//     const cp = p1.map((coord, idx) => (coord + p2[idx]) / 2);
+//     ctx.quadraticCurveTo(...p1, ...cp);
+//     ctx.stroke();
+// }
+
+// function smoothCurve(points) {
+//     ctx.lineJoin = 'round';
+//     ctx.lineCap = 'round';
+  
+//     ctx.moveTo(...points[0]);
+  
+//     for (let i = 1; i < points.length - 1; i++) {
+//         smoothCurveBetween(points[i], points[i + 1]);
+//     }
+// }
+
+// canvas.addEventListener('mousedown', (evt) => {
+//     drawing = true;
+
+//     const curve = [];
+
+//     const point = [evt.offsetX, evt.offsetY];
+//     point.hue = hue;
+//     point.brushSize = brushSize;
+
+//     curve.push(point);
+//     curves.push(curve);
+//     needsRepaint = true;
+// });
+
+// canvas.addEventListener('mouseup', () => {
+//     drawing = false;
+// });
+
+
+// canvas.addEventListener('mousemove', (evt) => {
+//     if (drawing) {
+//       const point = [evt.offsetX, evt.offsetY];
+//       point.hue = hue;
+//       point.brushSize = brushSize;
+//       curves[curves.length - 1].push(point);
+//       needsRepaint = true;
+//     }
+// });
+
+// canvas.addEventListener('dblclick', () => {
+//     curves = [];
+//     needsRepaint = true;
+// });
+
+
+// function repaint() {
+//     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+//     curves
+//         .forEach((curve) => {
+//             circle(curve[0]);
+//             smoothCurve(curve);
+//         });
+// }
+
+// function tick() {
+
+//     if (needsRepaint) {
+//         repaint();
+//         needsRepaint = false;
+//     }
+  
+//     window.requestAnimationFrame(tick);
+// }
+
+// tick();
