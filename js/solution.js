@@ -30,7 +30,7 @@ function makeBG(e) {
 	e.preventDefault();
 	const pic = Array.from(e.dataTransfer.files)[0];
 
-	sendPic(pic)
+	// sendPic(pic)
 }
 
 function sendPic(pic) {
@@ -145,14 +145,18 @@ for (let color of colors) {
 
 // comments mode
 const commentsTools = menu.querySelector('.comments-tools');
-// comments off
+// comments on
 commentsTools.querySelectorAll('.menu__toggle')[0].addEventListener('change', e => {
-	app.querySelector('.comments__form').style.display = 'block';
+	for (let commentsForm of app.querySelectorAll('.comments__form')) {
+		commentsForm.style.display = 'block';
+	}
 })
 
-// comments on
+// comments off
 commentsTools.querySelectorAll('.menu__toggle')[1].addEventListener('change', e => {
-	app.querySelector('.comments__form').style.display = 'none';
+	for (let commentsForm of app.querySelectorAll('.comments__form')) {
+		commentsForm.style.display = 'none';
+	}
 })
 
 
@@ -331,3 +335,173 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 // }
 
 // tick();
+
+
+
+
+// добавление нового комментария
+const commentsForm = app.querySelector('.comments__form');
+commentsForm.parentNode.removeChild(commentsForm)
+
+
+// сохраняю координаты точки комментария
+app.querySelector('.current-image').addEventListener('click', da)
+
+function da(e) {
+	e.preventDefault();
+	const picCoordinates = app.querySelector('.current-image').getBoundingClientRect();
+	const x = e.pageX - picCoordinates.left;
+	const y = e.pageY - picCoordinates.top;
+
+	app.appendChild(browserJSEngine(commentsFormTemplate()));
+	const commentsFormNodeList = app.querySelectorAll('.comments__form');
+	const commentsFormLast = commentsFormNodeList[commentsFormNodeList.length - 1];
+
+	const commentMarker = commentsFormLast.querySelector('.comments__marker')
+
+	commentsFormLast.style.left = `${e.pageX - (commentMarker.offsetWidth / 2) - 7}px`;
+	commentsFormLast.style.top = `${e.pageY - (commentMarker.offsetHeight / 2) - 2}px`;
+}
+
+
+// добавление формы сообщения
+// app.appendChild(browserJSEngine(commentsFormTemplate()));
+
+function commentTemplate(time, message) {
+	return {
+        tag: 'div',
+        cls: 'comment',
+        content: [
+        	{
+		        tag: 'p',
+		        cls: 'comment__time',
+		        text: `${time}`
+	        },
+        	{
+		        tag: 'p',
+		        cls: 'comment__message',
+		        text: `${message}`
+	        },
+        ]
+	}
+}
+
+function commentsFormTemplate() {
+	return {
+        tag: 'form',
+        cls: 'comments__form',
+        content: [
+        	{
+		        tag: 'span',
+		        cls: 'comments__marker'
+	        },
+        	{
+		        tag: 'input',
+		        attrs: {
+		        	type: "checkbox"
+		        },
+		        cls: 'comments__marker-checkbox'
+	        },
+        	{
+		        tag: 'div',
+		        cls: 'comments__body',
+		        content: [
+		        	commentTemplate('28.02.18 19:09:33', 'Здесь будет комментарий'),
+		        	{
+				        tag: 'div',
+				        cls: 'comment',
+				        content: [
+				        	{
+						        tag: 'div',
+						        cls: 'loader',
+						        content: [
+						        	{
+								        tag: 'span',
+							        },
+						        	{
+								        tag: 'span',
+							        },
+						        	{
+								        tag: 'span',
+							        },
+						        	{
+								        tag: 'span',
+							        },
+						        	{
+								        tag: 'span',
+							        }
+						        ]
+					        },
+				        ]
+			        },
+		        	{
+				        tag: 'textarea',
+				        cls: 'comments__input',
+        		        attrs: {
+				        	type: "checkbox",
+				        	placeholder: "Напишите ответ..."
+					    }
+				    },
+		        	{
+				        tag: 'input',
+				        cls: 'comments__close',
+        		        attrs: {
+				        	type: "button",
+				        	value: "Закрыть"
+					    }
+				    },
+		        	{
+				        tag: 'input',
+				        cls: 'comments__submit',
+        		        attrs: {
+				        	type: "submit",
+				        	value: "Отправить"
+					    }
+				    }
+		        ]
+	        }
+        ]
+	}
+}
+
+
+function browserJSEngine(block) {
+    if ((block === undefined) || (block === null) || (block === false)) {
+        return document.createTextNode('');
+    }
+    if ((typeof block === 'number') || (typeof block === 'string') || (block === true)) {
+        return document.createTextNode(block.toString());
+    }
+
+    if (Array.isArray(block)) {
+        return block.reduce((f, item) => {
+            f.appendChild(
+                browserJSEngine(item)
+            );
+
+            return f;
+        }, document.createDocumentFragment());
+    }
+
+    const element = document.createElement(block.tag);
+
+    if (block.cls) {
+        element.classList.add(...[].concat(block.cls));
+    }
+
+    if (block.attrs) {
+        Object.keys(block.attrs).forEach(key => {
+            element.setAttribute(key, block.attrs[key]);
+        });
+    }
+
+    if (block.content) {
+        element.appendChild(browserJSEngine(block.content));
+    }
+
+    if (block.text) {
+        element.textContent = block.text;
+    }
+
+    return element;
+}
