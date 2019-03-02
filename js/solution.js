@@ -1,78 +1,80 @@
 "use strict"
 const app = document.querySelector('.app');
+let picId = 0;
+let isHavingPic = false;
+let isHideComments = false;
+
+localStorage.currentPic = ''
 // по умолчанию
+setDefaults();
 function setDefaults() {
-	app.querySelector('.error').style.display = 'none';
-	app.querySelector('.image-loader').style.display = 'none';
-	app.querySelector('.comments__form').style.display = 'none';
-	app.querySelector('.current-image').style.display = 'none';
+	if (!(localStorage.currentPic)) {
+		app.querySelector('.error').style.display = 'none';
+		app.querySelector('.image-loader').style.display = 'none';
+		app.querySelector('.comments__form').style.display = 'none';
+		app.querySelector('.current-image').src = '';
 
-	// скрываю ненужные элементы меню
-	const menuItems = Array.from(app.querySelectorAll('.menu__item'));
-	for (let item of menuItems) {
-		if (!(item.classList.contains('drag') || item.classList.contains('new'))) {
-			item.style.display = 'none';
+		// скрываю ненужные элементы меню
+		const menuItems = Array.from(app.querySelectorAll('.menu__item'));
+		for (let item of menuItems) {
+			if (!(item.classList.contains('drag') || item.classList.contains('new'))) {
+				item.style.display = 'none';
+			}
 		}
+	} else {
+		app.querySelector('.current-image').src = localStorage.currentPic;
+		console.log(localStorage.currentPic)
 	}
-
-	app.querySelector('.menu').style.top = '48%';
-	app.querySelector('.menu').style.left = '46%';
 }
 
 // backgorund
 const backgorund = app.querySelector('.current-image');
-// app.addEventListener('dragover', e => {
-// 	e.preventDefault()});
+app.addEventListener('dragover', e => {
+	e.preventDefault()});
 
-// app.addEventListener('drop', makeBG);
+app.addEventListener('drop', makeBG);
 
 function makeBG(e) {
 	e.preventDefault();
-	const pic = Array.from(e.dataTransfer.files)[0];
+	if (app.querySelector('.current-image').src) {
+		app.querySelector('.error').querySelector('.error__message').textContent = 'Чтобы загрузить новое изображение, пожалуйста,\nвоспользуйтесь пунктом «Загрузить новое» в меню.';
+		app.querySelector('.error').style.display = 'block';
+	} else {
+		const pic = Array.from(e.dataTransfer.files)[0];
+		if ((pic.type === 'image/jpeg') || (pic.type === 'image/png')) {
+			app.querySelector('.error').style.display = 'none';
+		} else {
+			app.querySelector('.error').style.display = 'block';
+		}
 
-	// sendPic(pic)
+		sendPic(pic);
+	}
 }
 
 function sendPic(pic) {
-	// const corsproxy = 'https://cors-anywhere.herokuapp.com/';
-	// const urlJSON = 'https://neto-api.herokuapp.com/pic';
-
- //  	fetch(corsproxy + urlJSON, {
-	//     method: 'POST',
-	//     body: {title: pic.name,
-	//     	image: pic}
-	//  })
-	// 	.then(res => res.json())
-	// 	.then((res) => {console.log(res)})
-
-
+	app.querySelector('.image-loader').style.display = 'block';
 	const formData = new FormData();
-	formData.append('title', pic.name);
-	formData.append('image', pic);
+    formData.append('title', pic.name);
+    formData.append('image', pic);
 
-	// const myHeaders = new Headers({
-	//   "Content-Type": "multipart/form-data",
-
-	// });
-
-	const xhr = new XMLHttpRequest();
-	xhr.open('POST', 'https://neto-api.herokuapp.com/pic');
-	xhr.setRequestHeader('Content-Type', 'multipart/form-data');
-
-	xhr.addEventListener('load', () => {
-	if (xhr.status === 200){
-		console.log(`Файл ${pic.name} сохранен.`);
-	}
-	});
-	xhr.send(formData);
-
-  // fetch('https://neto-api.herokuapp.com/pic', {
-  //   method: 'POST',
-  //   body: {title: pic.name,
-  //   	image: pic}
-  // })
-  // .then((res) => {console.log(res)})
-  // .catch((err) => {console.log(err)})
+    fetch('https://neto-api.herokuapp.com/pic', {
+        body: formData,
+        // credentials: 'same-origin',
+        method: 'POST'
+    })
+  .then((res) => {
+  	return res.json();
+  })
+  .then((data) => {
+  	picId = data.id;
+  	localStorage.setItem('currentPic', data.url);
+  	app.querySelector('.current-image').src = data.url;
+  	app.querySelector('.image-loader').style.display = 'none';
+  	menu.querySelector('.share-tools').querySelector('.menu__url').value = 'https://havingnofuture.github.io/js-browser-netology-diploma/';
+  	switchMode('share');
+  	initWebSocket(data.id);
+  })
+  .catch((err) => {console.log(err)})
 }
 
 
@@ -99,6 +101,7 @@ function switchMode(mode) {
 			item.style.display = 'none';
 		}
 	}
+	menu.querySelector('.burger').style.display = 'inline-block';
 	menu.querySelector(`.${mode}-tools`).style.display = 'inline-block';
 }
 
@@ -124,7 +127,7 @@ input.setAttribute('accept', 'image/jpeg, image/png');
 // newMode.appendChild(input);
 input.addEventListener('change', e => {
 	const pic = event.currentTarget.files[0];
-	console.log(pic.name)
+
 	sendPic(pic)
 })
 
@@ -148,6 +151,7 @@ const commentsTools = menu.querySelector('.comments-tools');
 // comments on
 commentsTools.querySelectorAll('.menu__toggle')[0].addEventListener('change', e => {
 	for (let commentsForm of app.querySelectorAll('.comments__form')) {
+		isHideComments = false;
 		commentsForm.style.display = 'block';
 	}
 })
@@ -155,6 +159,7 @@ commentsTools.querySelectorAll('.menu__toggle')[0].addEventListener('change', e 
 // comments off
 commentsTools.querySelectorAll('.menu__toggle')[1].addEventListener('change', e => {
 	for (let commentsForm of app.querySelectorAll('.comments__form')) {
+		isHideComments = true;
 		commentsForm.style.display = 'none';
 	}
 })
@@ -344,10 +349,12 @@ const commentsForm = app.querySelector('.comments__form');
 commentsForm.parentNode.removeChild(commentsForm)
 
 
-// сохраняю координаты точки комментария
-app.querySelector('.current-image').addEventListener('click', da)
 
-function da(e) {
+
+// добавляю маркер, сохраняю координаты точки комментария
+app.querySelector('.current-image').addEventListener('click', addNewComment)
+
+function addNewComment(e) {
 	e.preventDefault();
 	const picCoordinates = app.querySelector('.current-image').getBoundingClientRect();
 	const x = e.pageX - picCoordinates.left;
@@ -356,17 +363,27 @@ function da(e) {
 	app.appendChild(browserJSEngine(commentsFormTemplate()));
 	const commentsFormNodeList = app.querySelectorAll('.comments__form');
 	const commentsFormLast = commentsFormNodeList[commentsFormNodeList.length - 1];
+	commentsFormLast.querySelector('.loader').style.display = 'none';
+	if (isHideComments) {
+		commentsFormLast.style.display = 'none';
+	}
 
 	const commentMarker = commentsFormLast.querySelector('.comments__marker')
 
 	commentsFormLast.style.left = `${e.pageX - (commentMarker.offsetWidth / 2) - 7}px`;
 	commentsFormLast.style.top = `${e.pageY - (commentMarker.offsetHeight / 2) - 2}px`;
+
+
+	commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
+		e.preventDefault();
+		e.target.parentNode.querySelector('.loader').style.display = 'block';
+		const message = commentsFormLast.querySelector('.comments__input').value;
+		sendComment(picId, x, y, message, commentsFormLast);
+	});
 }
 
 
 // добавление формы сообщения
-// app.appendChild(browserJSEngine(commentsFormTemplate()));
-
 function commentTemplate(time, message) {
 	return {
         tag: 'div',
@@ -406,7 +423,6 @@ function commentsFormTemplate() {
 		        tag: 'div',
 		        cls: 'comments__body',
 		        content: [
-		        	commentTemplate('28.02.18 19:09:33', 'Здесь будет комментарий'),
 		        	{
 				        tag: 'div',
 				        cls: 'comment',
@@ -504,4 +520,84 @@ function browserJSEngine(block) {
     }
 
     return element;
+}
+
+// отправка комментария на сервер
+function sendComment(picId, x, y, message, commentsForm) {
+	var details = {
+	    'message': `${message}`,
+	    'left': `${x}`,
+	    'top': `${y}`
+	};
+
+	var formBody = [];
+	for (var property in details) {
+	  var encodedKey = encodeURIComponent(property);
+	  var encodedValue = encodeURIComponent(details[property]);
+	  formBody.push(encodedKey + "=" + encodedValue);
+	}
+	formBody = formBody.join("&");
+
+	fetch(`https://neto-api.herokuapp.com/pic/${picId}/comments`, {
+	  method: 'POST',
+	  headers: {
+	    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+	  },
+	  body: formBody
+	})
+	  .then((res) => {
+	  	return res.json();
+	  })
+	  .then((data) => {
+	  	console.log(data)
+	  })
+	  .catch((err) => {console.log(err)})
+
+}
+
+
+// websocket
+function initWebSocket(id) {
+	const ws = new WebSocket(`wss://neto-api.herokuapp.com/pic/${id}`)
+
+	ws.addEventListener('message', e => {
+
+		const data = JSON.parse(e.data);
+
+		if (data.event == 'pic') {
+			console.log(data);
+		}
+
+		if (data.event == 'error') {
+			console.log('err', data.message);
+		}
+
+		if (data.event == 'comment') {
+			console.log(data);
+			let date = new Date(data.comment.timestamp);
+			const options = {
+			  year: 'numeric',
+			  month: 'numeric',
+			  day: 'numeric',
+			  timezone: 'UTC',
+			  hour: 'numeric',
+			  minute: 'numeric',
+			  second: 'numeric'
+			};
+ 
+			const da = app.querySelector('.comments__form').querySelectorAll('.comment')
+			const last = da[da.length - 1]
+			
+			app.querySelector('.comments__form').querySelector('.loader').style.display = 'none';
+			app.querySelector('.comments__form').querySelector('.comments__body').insertBefore(
+				browserJSEngine(commentTemplate(date.toLocaleString("ru", options), data.comment.message)),
+				last)
+			// data.comments
+		}
+
+		if (data.event == 'mask') {
+			console.log(data);
+		}
+	});
+
 }
