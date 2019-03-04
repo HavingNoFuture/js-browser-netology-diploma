@@ -1,8 +1,11 @@
 "use strict"
 const app = document.querySelector('.app');
+const menu = app.querySelector('.menu');
 let isHavingPic = false;
 let isHideComments = false;
+let isDrawningMode = false;
 
+// Очистить local storage:
 // localStorage.currentPic = '';
 // localStorage.currentCoordinates = '';
 
@@ -21,8 +24,7 @@ function getCoordinatesMenu() {
 
 
 
-// по умолчанию
-setDefaults();
+// Задаю состояние по умолчанию + сохраняю последнее состояние
 function setDefaults() {
   if (!(localStorage.currentPic)) {
     app.querySelector('.error').style.display = 'none';
@@ -44,7 +46,13 @@ function setDefaults() {
   if (!(localStorage.currentCoordinates)) {
     saveCoordinatesMenu(0, 0)
   }
+
+  if (!(localStorage.currentCoordinates)) {	
+	menu.style.left = getCoordinatesMenu().x + 'px';
+	menu.style.top = getCoordinatesMenu().y + 'px';
+  }
 }
+setDefaults();
 
 // backgorund
 const backgorund = app.querySelector('.current-image');
@@ -55,7 +63,7 @@ app.addEventListener('dragover', e => {
 // Проверяет на ошибки и отправляет пику.
 function makeBG(e) {
   e.preventDefault();
-  if (localStorage.currentPic) {
+  if (localStorage.currentPic && (!(drawing))) {
     app.querySelector('.error').querySelector('.error__message').textContent = 'Чтобы загрузить новое изображение, пожалуйста, воспользуйтесь пунктом «Загрузить новое» в меню.';
     app.querySelector('.error').style.display = 'block';
   } else {
@@ -102,13 +110,16 @@ function sendPic(pic) {
 
 
 // переключение меню
-const menu = app.querySelector('.menu');
 menu.querySelector('.comments').addEventListener('click', e => {
   switchMode('comments');
 });
 
+
 menu.querySelector('.draw').addEventListener('click', e => {
+	isDrawningMode = true;
   switchMode('draw');
+	setWindowCanvas();
+  // drawing = true; // (?)
 });
 
 menu.querySelector('.share').addEventListener('click', e => {
@@ -120,6 +131,7 @@ function switchMode(mode) {
   for (let item of menuModes) {
     if (!(item.classList.contains(mode))) {
       item.style.display = 'none';
+      canvas.style.display = 'none';
     }
   }
   menu.querySelector('.burger').style.display = 'inline-block';
@@ -256,84 +268,88 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 
 
 // рисование
+const canvas = document.createElement('canvas');
+app.appendChild(canvas);
+
+canvas.style.display = 'none'; // Скрыто, пока не нужен
+const ctx = canvas.getContext('2d');
 
 
-// const canvas = document.getElementById('draw');
-// const ctx = canvas.getContext('2d');
+const brushSize = 4;
 
-// canvas.width = window.outerWidth; 
-// canvas.height = window.outerHeight;
+let curves = [];
+let drawing = false;
 
-// let brushSize = 4;
-// let curves = [];
-// let drawing = false;
-// let changeBrushFlag = 'down';
-// let colorLineFlag = 'up'; 
-// let hue = 0; 
-// let needsRepaint = false;
+let needsRepaint = false;
+
+function setWindowCanvas() {
+  canvas.width = app.querySelector('.current-image').width;
+  canvas.height = app.querySelector('.current-image').width;
+  canvas.style.position = 'absolute';
+  canvas.style.zIndex = 5;
+  canvas.style.transform = 'translate(-50%, -50%)';
+  canvas.style.left = '50%';
+  canvas.style.top = '50%';
+  canvas.style.display = 'block';
+  repaint();
+}
 
 
-// document.addEventListener('keydown', (e) => {
-//   if (e.shiftKey) {
-//     colorLineFlag = 'down';
-//   }
-// });
+function circle(point) {
+    ctx.beginPath();
+    ctx.fillStyle = currentColor;
+    ctx.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
+    ctx.fill();
+}
 
-// function circle(point) {
-//     ctx.beginPath();
-//     ctx.fillStyle = `hsl(${point.hue}, 100%, 50%)`;
-//     ctx.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
-//     ctx.fill();
-// }
+function smoothCurveBetween(p1, p2) {
+    ctx.strokeStyle = p1.color;
+    ctx.lineWidth = p1.brushSize;
+    ctx.beginPath();
+    const cp = p1.map((coord, idx) => (coord + p2[idx]) / 2);
+    ctx.quadraticCurveTo(...p1, ...cp);
+    ctx.stroke();
+}
 
-// function smoothCurveBetween(p1, p2) {
-//     ctx.strokeStyle = `hsl(${p1.hue}, 100%, 50%)`;
-//     ctx.lineWidth = p1.brushSize;
-//     ctx.beginPath();
-//     const cp = p1.map((coord, idx) => (coord + p2[idx]) / 2);
-//     ctx.quadraticCurveTo(...p1, ...cp);
-//     ctx.stroke();
-// }
-
-// function smoothCurve(points) {
-//     ctx.lineJoin = 'round';
-//     ctx.lineCap = 'round';
+function smoothCurve(points) {
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
   
-//     ctx.moveTo(...points[0]);
+    ctx.moveTo(...points[0]);
   
-//     for (let i = 1; i < points.length - 1; i++) {
-//         smoothCurveBetween(points[i], points[i + 1]);
-//     }
-// }
+    for (let i = 1; i < points.length - 1; i++) {
+        smoothCurveBetween(points[i], points[i + 1]);
+    }
+}
 
-// canvas.addEventListener('mousedown', (evt) => {
-//     drawing = true;
+canvas.addEventListener('mousedown', (evt) => {
+    drawing = true;
 
-//     const curve = [];
+    const curve = [];
 
-//     const point = [evt.offsetX, evt.offsetY];
-//     point.hue = hue;
-//     point.brushSize = brushSize;
+    const point = [evt.offsetX, evt.offsetY];
+    point.color = currentColor;
+    point.brushSize = brushSize;
 
-//     curve.push(point);
-//     curves.push(curve);
-//     needsRepaint = true;
-// });
+    curve.push(point);
+    curves.push(curve);
+    needsRepaint = true;
+});
 
-// canvas.addEventListener('mouseup', () => {
-//     drawing = false;
-// });
+canvas.addEventListener('mouseup', () => {
+    drawing = false;
+});
 
 
-// canvas.addEventListener('mousemove', (evt) => {
-//     if (drawing) {
-//       const point = [evt.offsetX, evt.offsetY];
-//       point.hue = hue;
-//       point.brushSize = brushSize;
-//       curves[curves.length - 1].push(point);
-//       needsRepaint = true;
-//     }
-// });
+canvas.addEventListener('mousemove', (evt) => {
+    if (drawing) {
+      const point = [evt.offsetX, evt.offsetY];
+      point.color = currentColor;
+      point.brushSize = brushSize;
+      curves[curves.length - 1].push(point);
+      needsRepaint = true;
+    }
+});
 
 // canvas.addEventListener('dblclick', () => {
 //     curves = [];
@@ -341,27 +357,27 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 // });
 
 
-// function repaint() {
-//     ctx.clearRect(0, 0, canvas.width, canvas.height);
+function repaint() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-//     curves
-//         .forEach((curve) => {
-//             circle(curve[0]);
-//             smoothCurve(curve);
-//         });
-// }
+    curves
+        .forEach((curve) => {
+            circle(curve[0]);
+            smoothCurve(curve);
+        });
+}
 
-// function tick() {
+function tick() {
 
-//     if (needsRepaint) {
-//         repaint();
-//         needsRepaint = false;
-//     }
+    if (needsRepaint) {
+        repaint();
+        needsRepaint = false;
+    }
   
-//     window.requestAnimationFrame(tick);
-// }
+    window.requestAnimationFrame(tick);
+}
 
-// tick();
+tick();
 
 
 
@@ -370,8 +386,7 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 const commentsForm = app.querySelector('.comments__form');
 commentsForm.parentNode.removeChild(commentsForm) // (?) Мб просто убрать разметку из хтмл? Так как шаблон у меня в JS
 
-
-
+// elementFromPoint(x, y)
 
 // добавляю маркер, сохраняю координаты точки комментария
 app.querySelector('.current-image').addEventListener('click', addNewComment)
@@ -381,8 +396,8 @@ function addNewComment(e) {
 
   // работаю с координатами
   const picCoordinates = app.querySelector('.current-image').getBoundingClientRect();
-  const x = e.pageX - picCoordinates.left;
-  const y = e.pageY - picCoordinates.top;
+  const x1 = e.pageX - picCoordinates.left;
+  const y2 = e.pageY - picCoordinates.top;
 
   // добавляю коментарий в DOM-дерево.
   app.appendChild(browserJSEngine(commentsFormTemplate()));
@@ -398,12 +413,18 @@ function addNewComment(e) {
 
   commentsFormLast.style.left = `${e.pageX - (commentMarker.offsetWidth / 2) - 7}px`;
   commentsFormLast.style.top = `${e.pageY - (commentMarker.offsetHeight / 2) - 2}px`;
+  console.log(commentsFormLast.style.top)
 
   // показываю прелоадер, отправляю коммент на сервер.
   commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
     e.preventDefault();
     e.target.parentNode.querySelector('.loader').style.display = 'block';
     const message = commentsFormLast.querySelector('.comments__input').value;
+
+    // Вытаскиваю координаты меню
+    const x = e.target.parentNode.parentNode.getBoundingClientRect().left
+    const y = e.target.parentNode.parentNode.getBoundingClientRect().top
+
     sendComment(localStorage.picId, x, y, message, commentsFormLast);
   });
 }
@@ -611,15 +632,15 @@ function initWebSocket(id) {
         minute: 'numeric',
         second: 'numeric'
       };
- 
-      const da = app.querySelector('.comments__form').querySelectorAll('.comment')
-      const last = da[da.length - 1]
-      
-      app.querySelector('.comments__form').querySelector('.loader').style.display = 'none';
-      app.querySelector('.comments__form').querySelector('.comments__body').insertBefore(
+
+      // Определяю comment form и вставляю в него комментарий
+ 	  const currentCommentsForm = searchCommentsForm(document.elementFromPoint(data.comment.left, data.comment.top))
+      const commentItems = currentCommentsForm.querySelectorAll('.comment');
+      const lastCommentItem = commentItems[commentItems.length - 1]
+      currentCommentsForm.querySelector('.loader').style.display = 'none';
+      currentCommentsForm.querySelector('.comments__body').insertBefore(
         browserJSEngine(commentTemplate(date.toLocaleString("ru", options), data.comment.message)),
-        last)
-      // data.comments
+        lastCommentItem)
     }
 
     if (data.event == 'mask') {
@@ -627,6 +648,16 @@ function initWebSocket(id) {
     }
   });
 
+}
+
+
+// возвращает commentsFormy идя вверх по дереву.
+function searchCommentsForm(node) {
+	let currentNode = node;
+	while (!(currentNode.classList.contains('comments__form'))) {
+		currentNode = currentNode.parentNode;
+	}
+	return currentNode;
 }
 
 menu.style.left = getCoordinatesMenu().x + 'px';
