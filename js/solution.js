@@ -5,9 +5,14 @@ let isHavingPic = false;
 let isHideComments = false;
 let isDrawningMode = false;
 
+let ws;
+
 // Очистить local storage:
 // localStorage.currentPic = '';
-// localStorage.currentCoordinates = '';
+// localStorage.picId = ''
+localStorage.currentCoordinates = '';
+console.log(localStorage.picId)
+console.log(localStorage.currentPic)
 
 // сохранение координат меню в local storage
 function saveCoordinatesMenu(x, y) {
@@ -27,6 +32,7 @@ function getCoordinatesMenu() {
 // Задаю состояние по умолчанию + сохраняю последнее состояние
 function setDefaults() {
   if (!(localStorage.currentPic)) {
+  	localStorage.picId = document.location.href.split('?id=')[1];
     app.querySelector('.error').style.display = 'none';
     app.querySelector('.image-loader').style.display = 'none';
     app.querySelector('.comments__form').style.display = 'none';
@@ -40,7 +46,8 @@ function setDefaults() {
       }
     }
   } else {
-    app.querySelector('.current-image').src = localStorage.currentPic;
+  	initWebSocket(localStorage.picId);
+
   }
 
   if (!(localStorage.currentCoordinates)) {
@@ -99,13 +106,14 @@ function sendPic(pic) {
     localStorage.setItem('currentPic', data.url);
     app.querySelector('.current-image').src = data.url;
     app.querySelector('.image-loader').style.display = 'none';
-    menu.querySelector('.share-tools').querySelector('.menu__url').value = 'https://havingnofuture.github.io/js-browser-netology-diploma/'; // (?)
+    const url = `${document.location.href.split('?')[0]}?id=${data.id}`;
+    menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
     switchMode('share');
     initWebSocket(localStorage.picId);
   })
   .catch((err) => {console.log(err)})
 }
-
+console.log(document.location.href)
 
 
 
@@ -365,6 +373,8 @@ function repaint() {
             circle(curve[0]);
             smoothCurve(curve);
         });
+
+    sendPngMask();
 }
 
 function tick() {
@@ -413,7 +423,6 @@ function addNewComment(e) {
 
   commentsFormLast.style.left = `${e.pageX - (commentMarker.offsetWidth / 2) - 7}px`;
   commentsFormLast.style.top = `${e.pageY - (commentMarker.offsetHeight / 2) - 2}px`;
-  console.log(commentsFormLast.style.top)
 
   // показываю прелоадер, отправляю коммент на сервер.
   commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
@@ -603,16 +612,19 @@ function sendComment(picId, x, y, message, commentsForm) {
 
 }
 
-
+console.log()
 // websocket
 function initWebSocket(id) {
-  const ws = new WebSocket(`wss://neto-api.herokuapp.com/pic/${id}`)
+  ws = new WebSocket(`wss://neto-api.herokuapp.com/pic/${id}`)
 
   ws.addEventListener('message', e => {
 
     const data = JSON.parse(e.data);
 
     if (data.event == 'pic') {
+    	localStorage.picId = data.pic.id;
+    	localStorage.currentPic = data.pic.url;
+      app.querySelector('.current-image').src = localStorage.currentPic;
       console.log(data);
     }
 
@@ -647,7 +659,6 @@ function initWebSocket(id) {
       console.log(data);
     }
   });
-
 }
 
 
@@ -659,6 +670,29 @@ function searchCommentsForm(node) {
 	}
 	return currentNode;
 }
+
+function sendPngMask() {
+    canvas.toBlob(blob => {
+        // if (!wsGlobal) return;
+        // const curvesNumberToRemoveNow = curvesNumberToRemoveNextTime;
+        // curves.splice(0, curvesNumberToRemoveNow);
+        // curvesNumberToRemoveNextTime = curves.length - 1;
+
+        ws.send(blob);
+    }, 'image/png', 0.95);
+}
+
+// function createPngFromMask() {
+// 	canvas.toBlob(function(blob){
+// 	    link.href = URL.createObjectURL(blob);
+// 	    console.log(blob);
+// 	    console.log(link.href); // this line should be here
+// 	},'image/png');
+// 	// return canvas.toBlob(function(blob) {
+// 	//   const url = URL.createObjectURL(blob);
+//  //      URL.revokeObjectURL(url);
+// 	// }, 'image/png', 0.95);
+// }
 
 menu.style.left = getCoordinatesMenu().x + 'px';
 menu.style.top = getCoordinatesMenu().y + 'px';
