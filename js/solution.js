@@ -106,7 +106,8 @@ function sendPic(pic) {
     localStorage.setItem('currentPic', data.url);
     app.querySelector('.current-image').src = data.url;
     app.querySelector('.image-loader').style.display = 'none';
-    const url = `${document.location.href.split('?')[0]}?id=${data.id}`;
+    const url = app.querySelector('.menu__url').value + `?id=${data.id}`;
+    // const url = `${document.location.href.split('?')[0]}?id=${data.id}`;
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
     switchMode('share');
     initWebSocket(localStorage.picId);
