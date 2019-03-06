@@ -10,10 +10,11 @@ let ws;
 // Очистить local storage:
 // localStorage.currentPic = '';
 // localStorage.picId = ''
-localStorage.currentCoordinates = '';
+// localStorage.currentCoordinates = '';
 console.log(localStorage.picId)
 console.log(localStorage.currentPic)
-
+menu.querySelector('.share-tools').querySelector('.menu__url').value = document.location.href.split('?id=')[0];
+console.log(document.location.href.split('?id=')[0])
 // сохранение координат меню в local storage
 function saveCoordinatesMenu(x, y) {
   localStorage.currentCoordinates = JSON.stringify({
@@ -27,16 +28,16 @@ function getCoordinatesMenu() {
   return JSON.parse(localStorage.currentCoordinates);
 }
 
-
+localStorage.picId = document.location.href.split('?id=')[1];
 
 // Задаю состояние по умолчанию + сохраняю последнее состояние
 function setDefaults() {
-  if (!(localStorage.currentPic)) {
-  	localStorage.picId = document.location.href.split('?id=')[1];
+  if (!(localStorage.currentPic) && (localStorage.picId === 'undefined')) {
+  	console.log('!localStorage.currentPic')
+    // localStorage.picId = document.location.href.split('?id=')[1];
     app.querySelector('.error').style.display = 'none';
     app.querySelector('.image-loader').style.display = 'none';
     app.querySelector('.comments__form').style.display = 'none';
-    app.querySelector('.current-image').src = '';
 
     // скрываю ненужные элементы меню
     const menuItems = Array.from(app.querySelectorAll('.menu__item'));
@@ -46,17 +47,15 @@ function setDefaults() {
       }
     }
   } else {
-  	initWebSocket(localStorage.picId);
+  	console.log('else')
+    initWebSocket(localStorage.picId);
 
   }
 
-  if (!(localStorage.currentCoordinates)) {
-    saveCoordinatesMenu(0, 0)
-  }
 
-  if (!(localStorage.currentCoordinates)) {	
-	menu.style.left = getCoordinatesMenu().x + 'px';
-	menu.style.top = getCoordinatesMenu().y + 'px';
+  if (!(localStorage.currentCoordinates)) {  
+  menu.style.left = getCoordinatesMenu().x + 'px';
+  menu.style.top = getCoordinatesMenu().y + 'px';
   }
 }
 setDefaults();
@@ -102,15 +101,14 @@ function sendPic(pic) {
     return res.json();
   })
   .then((data) => {
-    localStorage.setItem('picId', data.id);
-    localStorage.setItem('currentPic', data.url);
-    app.querySelector('.current-image').src = data.url;
+    // localStorage.setItem('picId', data.id);
+    // localStorage.setItem('currentPic', data.url);
+    // app.querySelector('.current-image').src = data.url;
     app.querySelector('.image-loader').style.display = 'none';
-    const url = app.querySelector('.menu__url').value + `?id=${data.id}`;
-    // const url = `${document.location.href.split('?')[0]}?id=${data.id}`;
+    const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${data.id}`;
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
     switchMode('share');
-    initWebSocket(localStorage.picId);
+    initWebSocket(data.id);
   })
   .catch((err) => {console.log(err)})
 }
@@ -125,9 +123,9 @@ menu.querySelector('.comments').addEventListener('click', e => {
 
 
 menu.querySelector('.draw').addEventListener('click', e => {
-	isDrawningMode = true;
+  isDrawningMode = true;
   switchMode('draw');
-	setWindowCanvas();
+  setWindowCanvas();
   // drawing = true; // (?)
 });
 
@@ -623,8 +621,8 @@ function initWebSocket(id) {
     const data = JSON.parse(e.data);
 
     if (data.event == 'pic') {
-    	localStorage.picId = data.pic.id;
-    	localStorage.currentPic = data.pic.url;
+      localStorage.picId = data.pic.id;
+      localStorage.currentPic = data.pic.url;
       app.querySelector('.current-image').src = localStorage.currentPic;
       console.log(data);
     }
@@ -647,7 +645,7 @@ function initWebSocket(id) {
       };
 
       // Определяю comment form и вставляю в него комментарий
- 	  const currentCommentsForm = searchCommentsForm(document.elementFromPoint(data.comment.left, data.comment.top))
+     const currentCommentsForm = searchCommentsForm(document.elementFromPoint(data.comment.left, data.comment.top))
       const commentItems = currentCommentsForm.querySelectorAll('.comment');
       const lastCommentItem = commentItems[commentItems.length - 1]
       currentCommentsForm.querySelector('.loader').style.display = 'none';
@@ -662,14 +660,18 @@ function initWebSocket(id) {
   });
 }
 
+function createNewCommentsForm() {
+	
+}
+
 
 // возвращает commentsFormy идя вверх по дереву.
 function searchCommentsForm(node) {
-	let currentNode = node;
-	while (!(currentNode.classList.contains('comments__form'))) {
-		currentNode = currentNode.parentNode;
-	}
-	return currentNode;
+  let currentNode = node;
+  while (!(currentNode.classList.contains('comments__form'))) {
+    currentNode = currentNode.parentNode;
+  }
+  return currentNode;
 }
 
 function sendPngMask() {
@@ -684,15 +686,15 @@ function sendPngMask() {
 }
 
 // function createPngFromMask() {
-// 	canvas.toBlob(function(blob){
-// 	    link.href = URL.createObjectURL(blob);
-// 	    console.log(blob);
-// 	    console.log(link.href); // this line should be here
-// 	},'image/png');
-// 	// return canvas.toBlob(function(blob) {
-// 	//   const url = URL.createObjectURL(blob);
+//   canvas.toBlob(function(blob){
+//       link.href = URL.createObjectURL(blob);
+//       console.log(blob);
+//       console.log(link.href); // this line should be here
+//   },'image/png');
+//   // return canvas.toBlob(function(blob) {
+//   //   const url = URL.createObjectURL(blob);
 //  //      URL.revokeObjectURL(url);
-// 	// }, 'image/png', 0.95);
+//   // }, 'image/png', 0.95);
 // }
 
 menu.style.left = getCoordinatesMenu().x + 'px';
