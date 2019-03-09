@@ -1,20 +1,24 @@
 "use strict"
 const app = document.querySelector('.app');
 const menu = app.querySelector('.menu');
-let isHavingPic = false;
+
 let isHideComments = false;
 let isDrawningMode = false;
 
-let ws;
+const canvas = document.createElement('canvas');
+
+let ws; // глобальная переменная web socket
+
 
 // Очистить local storage:
 // localStorage.currentPic = '';
 // localStorage.picId = ''
 // localStorage.currentCoordinates = '';
-console.log(localStorage.picId)
-console.log(localStorage.currentPic)
+
+
+// нужна для тестов на компе.
 menu.querySelector('.share-tools').querySelector('.menu__url').value = document.location.href.split('?id=')[0];
-console.log(document.location.href.split('?id=')[0])
+
 // сохранение координат меню в local storage
 function saveCoordinatesMenu(x, y) {
   localStorage.currentCoordinates = JSON.stringify({
@@ -28,16 +32,30 @@ function getCoordinatesMenu() {
   return JSON.parse(localStorage.currentCoordinates);
 }
 
-localStorage.picId = document.location.href.split('?id=')[1];
+
+let picId = document.location.href.split('?id=')[1];
 
 // Задаю состояние по умолчанию + сохраняю последнее состояние
 function setDefaults() {
-  if (!(localStorage.currentPic) && (localStorage.picId === 'undefined')) {
-  	console.log('!localStorage.currentPic')
-    // localStorage.picId = document.location.href.split('?id=')[1];
+  // сюда попаду и при переходе по ссылке и при обновлении страницы.
+  if ((picId != undefined) || (localStorage.currentPic)) {
+    // ls.currentPic и ls.picId задаются при initWebSocket().
+  app.querySelector('.current-image').src = localStorage.currentPic;
+    if (picId != undefined) {
+      // сюда попали, если перешли по ссылке
+      switchMode('comments');
+      localStorage.picId = picId;
+    }
+    // При обновлении страницы ls.picId и ls.currentPic уже будут.
+    initWebSocket(localStorage.picId);
+
+
+    // обновляю ur; в меню
+    const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${localStorage.picId}`;
+    menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
+  } else {
     app.querySelector('.error').style.display = 'none';
     app.querySelector('.image-loader').style.display = 'none';
-    app.querySelector('.comments__form').style.display = 'none';
 
     // скрываю ненужные элементы меню
     const menuItems = Array.from(app.querySelectorAll('.menu__item'));
@@ -46,12 +64,7 @@ function setDefaults() {
         item.style.display = 'none';
       }
     }
-  } else {
-  	console.log('else')
-    initWebSocket(localStorage.picId);
-
   }
-
 
   if (!(localStorage.currentCoordinates)) {  
   menu.style.left = getCoordinatesMenu().x + 'px';
@@ -101,9 +114,6 @@ function sendPic(pic) {
     return res.json();
   })
   .then((data) => {
-    // localStorage.setItem('picId', data.id);
-    // localStorage.setItem('currentPic', data.url);
-    // app.querySelector('.current-image').src = data.url;
     app.querySelector('.image-loader').style.display = 'none';
     const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${data.id}`;
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
@@ -112,7 +122,6 @@ function sendPic(pic) {
   })
   .catch((err) => {console.log(err)})
 }
-console.log(document.location.href)
 
 
 
@@ -274,21 +283,22 @@ document.addEventListener('touchmove', event => drag(event.touches[0].pageX, eve
 document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 
 
+
 // рисование
-const canvas = document.createElement('canvas');
+
+// const canvas = document.createElement('canvas');
 app.appendChild(canvas);
 
 canvas.style.display = 'none'; // Скрыто, пока не нужен
 const ctx = canvas.getContext('2d');
 
-
-const brushSize = 4;
+const BRUSH_RADIUS = 4;
 
 let curves = [];
 let drawing = false;
-
 let needsRepaint = false;
 
+// появляется и устанавливает границы окна canvas
 function setWindowCanvas() {
   canvas.width = app.querySelector('.current-image').width;
   canvas.height = app.querySelector('.current-image').width;
@@ -302,114 +312,134 @@ function setWindowCanvas() {
 }
 
 
+// curves and figures
 function circle(point) {
     ctx.beginPath();
-    ctx.fillStyle = currentColor;
+    ctx.strokeStyle = point.color;
     ctx.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
     ctx.fill();
 }
 
-function smoothCurveBetween(p1, p2) {
-    ctx.strokeStyle = p1.color;
-    ctx.lineWidth = p1.brushSize;
-    ctx.beginPath();
-    const cp = p1.map((coord, idx) => (coord + p2[idx]) / 2);
-    ctx.quadraticCurveTo(...p1, ...cp);
-    ctx.stroke();
+
+function smoothCurveBetween (p1, p2) {
+  // Bezier control point
+  const cp = p1.map((coord, idx) => (coord + p2[idx]) / 2);
+  ctx.quadraticCurveTo(...p1, ...cp);
 }
 
 function smoothCurve(points) {
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-  
-    ctx.moveTo(...points[0]);
-  
-    for (let i = 1; i < points.length - 1; i++) {
-        smoothCurveBetween(points[i], points[i + 1]);
-    }
+  ctx.beginPath();
+  ctx.lineWidth = BRUSH_RADIUS;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  ctx.moveTo(...points[0]);
+
+  for(let i = 1; i < points.length - 1; i++) {
+    smoothCurveBetween(points[i], points[i + 1]);
+  }
+
+  ctx.stroke();
 }
 
-canvas.addEventListener('mousedown', (evt) => {
-    drawing = true;
+// events
+function makePoint(x, y) {
+  return [x, y];
+};
 
-    const curve = [];
 
-    const point = [evt.offsetX, evt.offsetY];
-    point.color = currentColor;
-    point.brushSize = brushSize;
+canvas.addEventListener("mousedown", (evt) => {
+  drawing = true;
 
-    curve.push(point);
-    curves.push(curve);
+  const curve = []; // create a new curve
+
+  const point = [evt.offsetX, evt.offsetY];
+  point.color = currentColor;
+
+  curve.push(point); // add a new point
+  curves.push(curve); // add the curve to the array of curves
+  needsRepaint = true;
+});
+
+canvas.addEventListener("mouseup", (evt) => {
+  drawing = false;
+  sendPngMask();
+  // clearInterval(intervalID);
+});
+
+canvas.addEventListener("mouseleave", (evt) => {
+  drawing = false;
+});
+
+canvas.addEventListener("mousemove", (evt) => {
+  if (drawing) {
+    // add a point
+    const point = makePoint(evt.offsetX, evt.offsetY)
+    ctx.fillStyle = currentColor;
+    curves[curves.length - 1].push(point);
     needsRepaint = true;
+  }
 });
 
-canvas.addEventListener('mouseup', () => {
-    drawing = false;
-});
+// rendering
+function repaint () {
+  // clear before repainting
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  curves
+    .forEach((curve) => {
+      // first...
+      circle(curve[0]);
 
-canvas.addEventListener('mousemove', (evt) => {
-    if (drawing) {
-      const point = [evt.offsetX, evt.offsetY];
-      point.color = currentColor;
-      point.brushSize = brushSize;
-      curves[curves.length - 1].push(point);
-      needsRepaint = true;
-    }
-});
-
-// canvas.addEventListener('dblclick', () => {
-//     curves = [];
-//     needsRepaint = true;
-// });
-
-
-function repaint() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    curves
-        .forEach((curve) => {
-            circle(curve[0]);
-            smoothCurve(curve);
-        });
-
-    sendPngMask();
+      // the body is compraised of lines
+      smoothCurve(curve);
+    });
 }
 
-function tick() {
+function tick () {
+  if(needsRepaint) {
+    repaint();
+    needsRepaint = false;
+  }
 
-    if (needsRepaint) {
-        repaint();
-        needsRepaint = false;
-    }
-  
-    window.requestAnimationFrame(tick);
+  window.requestAnimationFrame(tick);
 }
 
 tick();
 
 
 
+let intervalID = null;
 
-// добавление нового комментария
-const commentsForm = app.querySelector('.comments__form');
-commentsForm.parentNode.removeChild(commentsForm) // (?) Мб просто убрать разметку из хтмл? Так как шаблон у меня в JS
+// intervalID = setInterval(() => {
+  //   sendPngMask();
+  // }, 1000);
 
-// elementFromPoint(x, y)
+// отправить маску
+var fps = 1;
+function step() {
+  sendPngMask();
+  console.log(x1++)
+    intervalID = setTimeout(function() {
+        requestAnimationFrame(step);
+        // Drawing code goes here
+    }, 1000 / fps);
+}
 
-// добавляю маркер, сохраняю координаты точки комментария
-app.querySelector('.current-image').addEventListener('click', addNewComment)
 
-function addNewComment(e) {
-  e.preventDefault();
 
-  // работаю с координатами
-  const picCoordinates = app.querySelector('.current-image').getBoundingClientRect();
-  const x1 = e.pageX - picCoordinates.left;
-  const y2 = e.pageY - picCoordinates.top;
+// ------------------------ Комментарии ----------------------
 
-  // добавляю коментарий в DOM-дерево.
-  app.appendChild(browserJSEngine(commentsFormTemplate()));
+const commentsArea = app.querySelector('.comments-area');
+
+function createCommentsForm() {
+  // создает коммент форму по шаблону
+  return browserJSEngine(commentsFormTemplate());
+}
+
+function addCommentsForm(x, y) {
+  // добавляет пустую коммент форму
+  commentsArea.appendChild(createCommentsForm());
   const commentsFormNodeList = app.querySelectorAll('.comments__form');
   const commentsFormLast = commentsFormNodeList[commentsFormNodeList.length - 1];
   commentsFormLast.querySelector('.loader').style.display = 'none';
@@ -417,29 +447,37 @@ function addNewComment(e) {
     commentsFormLast.style.display = 'none';
   }
 
-  // цеаляю маркер на пикчу.
-  const commentMarker = commentsFormLast.querySelector('.comments__marker')
 
-  commentsFormLast.style.left = `${e.pageX - (commentMarker.offsetWidth / 2) - 7}px`;
-  commentsFormLast.style.top = `${e.pageY - (commentMarker.offsetHeight / 2) - 2}px`;
+  commentsFormLast.style.left = `${x - 22}px`;
+  commentsFormLast.style.top = `${y - 14}px`;
+  commentsFormLast.style.zIndex = 2;
+
+  return commentsFormLast;
+}
+
+
+app.querySelector('.current-image').addEventListener('click', addNewComment)
+function addNewComment(e) {
+  // добавляю коммент форму, сохраняю координаты точки комментария
+  e.preventDefault();
+  const x = e.offsetX;
+  const y = e.offsetY;
+
+  const commentsFormLast = addCommentsForm(x, y);
 
   // показываю прелоадер, отправляю коммент на сервер.
   commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
     e.preventDefault();
     e.target.parentNode.querySelector('.loader').style.display = 'block';
+
     const message = commentsFormLast.querySelector('.comments__input').value;
 
-    // Вытаскиваю координаты меню
-    const x = e.target.parentNode.parentNode.getBoundingClientRect().left
-    const y = e.target.parentNode.parentNode.getBoundingClientRect().top
-
-    sendComment(localStorage.picId, x, y, message, commentsFormLast);
+    sendComment(x, y, message);
   });
 }
 
-
-// добавление одного сообщения
 function commentTemplate(time, message) {
+  // шаблон одного сообщения
   return {
         tag: 'div',
         cls: 'comment',
@@ -458,8 +496,9 @@ function commentTemplate(time, message) {
   }
 }
 
-// добавление формы сообщения
+
 function commentsFormTemplate() {
+  // шаблон пустой формы сообщения
   return {
         tag: 'form',
         cls: 'comments__form',
@@ -536,8 +575,8 @@ function commentsFormTemplate() {
   }
 }
 
-// движок-обработчик для добавления DOM-элементов.
 function browserJSEngine(block) {
+  // движок-обработчик для добавления DOM-элементов.
     if ((block === undefined) || (block === null) || (block === false)) {
         return document.createTextNode('');
     }
@@ -578,8 +617,8 @@ function browserJSEngine(block) {
     return element;
 }
 
-// отправка комментария на сервер
-function sendComment(picId, x, y, message, commentsForm) {
+function sendComment(x, y, message) {
+  // отправка комментария на сервер
   var details = {
       'message': `${message}`,
       'left': `${x}`,
@@ -594,7 +633,7 @@ function sendComment(picId, x, y, message, commentsForm) {
   }
   formBody = formBody.join("&");
 
-  fetch(`https://neto-api.herokuapp.com/pic/${picId}/comments`, {
+  fetch(`https://neto-api.herokuapp.com/pic/${localStorage.picId}/comments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
@@ -611,8 +650,26 @@ function sendComment(picId, x, y, message, commentsForm) {
 
 }
 
-console.log()
-// websocket
+
+function searchCommentsForm(data) {
+  // Возвращает коммент форму по координатам от сервера, если координаты не соответсвуют - создает новую по координатам
+  const x = data.comment.left;
+  const y = data.comment.top;
+
+  const commentsForms = commentsArea.querySelectorAll('.comments__form');
+  for (let form of commentsForms) {
+    if (((parseInt(form.style.left)) === x - 22) && (parseInt(form.style.top)) === y - 14) {
+      return form;
+    } 
+  }
+
+  return addCommentsForm(x, y);
+}
+
+
+// ------------------------ Web Socket ----------------------
+
+
 function initWebSocket(id) {
   ws = new WebSocket(`wss://neto-api.herokuapp.com/pic/${id}`)
 
@@ -634,20 +691,21 @@ function initWebSocket(id) {
     if (data.event == 'comment') {
       console.log(data);
       let date = new Date(data.comment.timestamp);
-      const options = {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        timezone: 'UTC',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric'
-      };
 
-      // Определяю comment form и вставляю в него комментарий
-     const currentCommentsForm = searchCommentsForm(document.elementFromPoint(data.comment.left, data.comment.top))
+        const options = {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  };
+
+      // Определяю comment form и вставляю в неe комментарий
+      const currentCommentsForm = searchCommentsForm(data);
       const commentItems = currentCommentsForm.querySelectorAll('.comment');
       const lastCommentItem = commentItems[commentItems.length - 1]
+
       currentCommentsForm.querySelector('.loader').style.display = 'none';
       currentCommentsForm.querySelector('.comments__body').insertBefore(
         browserJSEngine(commentTemplate(date.toLocaleString("ru", options), data.comment.message)),
@@ -655,24 +713,18 @@ function initWebSocket(id) {
     }
 
     if (data.event == 'mask') {
-      console.log(data);
+      const img = new Image();
+    img.src = data.url;
+    img.addEventListener("load", function() {
+      console.log('load img')
+      ctx.drawImage(img, 0, 0);
+    }, false);
+      img.src = data.url;
+      console.log(data.url);
     }
   });
 }
 
-function createNewCommentsForm() {
-	
-}
-
-
-// возвращает commentsFormy идя вверх по дереву.
-function searchCommentsForm(node) {
-  let currentNode = node;
-  while (!(currentNode.classList.contains('comments__form'))) {
-    currentNode = currentNode.parentNode;
-  }
-  return currentNode;
-}
 
 function sendPngMask() {
     canvas.toBlob(blob => {
@@ -682,9 +734,10 @@ function sendPngMask() {
         // curvesNumberToRemoveNextTime = curves.length - 1;
 
         ws.send(blob);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }, 'image/png', 0.95);
 }
-
+  
 // function createPngFromMask() {
 //   canvas.toBlob(function(blob){
 //       link.href = URL.createObjectURL(blob);
