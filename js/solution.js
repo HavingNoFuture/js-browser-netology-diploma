@@ -66,7 +66,7 @@ function setDefaults() {
     }
   }
 
-  if (!(localStorage.currentCoordinates)) {  
+  if (localStorage.currentCoordinates) {  
   menu.style.left = getCoordinatesMenu().x + 'px';
   menu.style.top = getCoordinatesMenu().y + 'px';
   }
@@ -750,5 +750,5 @@ function sendPngMask() {
 //   // }, 'image/png', 0.95);
 // }
 
-// menu.style.left = getCoordinatesMenu().x + 'px';
-// menu.style.top = getCoordinatesMenu().y + 'px';
+menu.style.left = getCoordinatesMenu().x + 'px';
+menu.style.top = getCoordinatesMenu().y + 'px';
