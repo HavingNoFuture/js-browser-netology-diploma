@@ -455,78 +455,78 @@ function commentTemplate(time, message) {
 function commentsFormTemplate() {
   // шаблон пустой формы сообщения
   return {
-        tag: 'form',
-        cls: 'comments__form',
+    tag: 'form',
+    cls: 'comments__form',
+    content: [
+      {
+        tag: 'span',
+        cls: 'comments__marker'
+      },
+      {
+        tag: 'input',
+        attrs: {
+          type: "checkbox"
+        },
+        cls: 'comments__marker-checkbox'
+      },
+      {
+        tag: 'div',
+        cls: 'comments__body',
         content: [
           {
-            tag: 'span',
-            cls: 'comments__marker'
-          },
-          {
-            tag: 'input',
-            attrs: {
-              type: "checkbox"
-            },
-            cls: 'comments__marker-checkbox'
-          },
-          {
             tag: 'div',
-            cls: 'comments__body',
+            cls: 'comment',
             content: [
               {
                 tag: 'div',
-                cls: 'comment',
+                cls: 'loader',
                 content: [
                   {
-                    tag: 'div',
-                    cls: 'loader',
-                    content: [
-                      {
-                        tag: 'span',
-                      },
-                      {
-                        tag: 'span',
-                      },
-                      {
-                        tag: 'span',
-                      },
-                      {
-                        tag: 'span',
-                      },
-                      {
-                        tag: 'span',
-                      }
-                    ]
+                    tag: 'span',
                   },
+                  {
+                    tag: 'span',
+                  },
+                  {
+                    tag: 'span',
+                  },
+                  {
+                    tag: 'span',
+                  },
+                  {
+                    tag: 'span',
+                  }
                 ]
               },
-              {
-                tag: 'textarea',
-                cls: 'comments__input',
-                    attrs: {
-                  type: "checkbox",
-                  placeholder: "Напишите ответ..."
-              }
-            },
-              {
-                tag: 'input',
-                cls: 'comments__close',
-                    attrs: {
-                  type: "button",
-                  value: "Закрыть"
-              }
-            },
-              {
-                tag: 'input',
-                cls: 'comments__submit',
-                    attrs: {
-                  type: "button",
-                  value: "Отправить"
-              }
-            }
             ]
+          },
+          {
+            tag: 'textarea',
+            cls: 'comments__input',
+                attrs: {
+              type: "checkbox",
+              placeholder: "Напишите ответ..."
+          }
+        },
+          {
+            tag: 'input',
+            cls: 'comments__close',
+                attrs: {
+              type: "button",
+              value: "Закрыть"
+          }
+        },
+          {
+            tag: 'input',
+            cls: 'comments__submit',
+                attrs: {
+              type: "submit",
+              value: "Отправить"
+            }
           }
         ]
+      }
+    ]
   }
 }
 
@@ -611,6 +611,17 @@ function addCommentsForm(x, y) {
     commentsFormLast.querySelector('.comments__body').style.display = 'none';
   });
 
+  // отправляю сообщение при клике на "Отправить"
+  commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
+  	e.preventDefault();
+    const currentCommentForm = e.target.parentNode.parentNode;
+    const message = currentCommentForm.querySelector('.comments__input').value;
+
+    currentCommentForm.querySelector('.loader').style.display = 'block';
+    sendComment(parseInt(currentCommentForm.style.left) + 22, parseInt(currentCommentForm.style.top) + 14, message);
+    currentCommentForm.querySelector('.comments__input').value = '';
+  });
+
   commentsFormLast.style.left = `${x - 22}px`;
   commentsFormLast.style.top = `${y - 14}px`;
   commentsFormLast.style.zIndex = 2;
@@ -653,25 +664,11 @@ function sendComment(x, y, message) {
 }
 
 
-app.querySelector('.current-image').addEventListener('click', addNewComment);
-function addNewComment(e) {
-  // добавляю коммент форму, сохраняю координаты точки комментария
-  e.preventDefault();
-  const x = e.offsetX;
-  const y = e.offsetY;
-
-  const commentsFormLast = addCommentsForm(x, y)
-
-  // показываю прелоадер, отправляю коммент на сервер.
-  commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
-    e.preventDefault();
-    e.target.parentNode.querySelector('.loader').style.display = 'block';
-
-    const message = commentsFormLast.querySelector('.comments__input').value;
-
-    sendComment(x, y, message);
-  });
-}
+app.querySelector('.current-image').addEventListener('click', e => {
+	// добавляю коммент форму в клик
+	e.preventDefault();
+	addCommentsForm(e.offsetX, e.offsetY);
+});
 
 
 function searchCommentsForm(data) {
@@ -734,15 +731,17 @@ function initWebSocket(id) {
     }
 
     if (data.event == 'mask') {
+      console.log(data);
       const img = new Image();
       img.src = data.url;
+
       img.addEventListener("load", function() {
         console.log('load img')
         ctxServer.drawImage(img, 0, 0);
         ctxClient.clearRect(0, 0, canvasClient.width, canvasClient.height);
       }, false);
+
       img.src = data.url;
-      console.log(data.url);
     }
   });
 }
