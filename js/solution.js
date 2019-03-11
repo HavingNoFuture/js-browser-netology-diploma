@@ -16,6 +16,24 @@ let ws; // глобальная переменная web socket
 // localStorage.currentCoordinates = '';
 
 
+function debounce(callback, delay) {
+	let timeout;
+	return () => {
+		clearTimeout(timeout);
+		timeout = setTimeout(function() {
+			timeout = null;
+			callback();
+		}, delay);
+	};
+};
+
+const hideError = debounce(() => {
+	app.querySelector('.error').style.display = 'none';
+}, 5000);
+
+
+
+
 // нужна для тестов на компе.
 menu.querySelector('.share-tools').querySelector('.menu__url').value = document.location.href.split('?id=')[0];
 
@@ -50,7 +68,7 @@ function setDefaults() {
     initWebSocket(localStorage.picId);
 
 
-    // обновляю ur; в меню
+    // обновляю url в меню
     const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${localStorage.picId}`;
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
   } else {
@@ -66,10 +84,10 @@ function setDefaults() {
     }
   }
 
-  // if (localStorage.currentCoordinates) {  
-  // menu.style.left = getCoordinatesMenu().x + 'px';
-  // menu.style.top = getCoordinatesMenu().y + 'px';
-  // }
+  if (localStorage.currentCoordinates) {  
+  menu.style.left = getCoordinatesMenu().x + 'px';
+  menu.style.top = getCoordinatesMenu().y + 'px';
+  }
 }
 setDefaults();
 
@@ -85,6 +103,7 @@ function makeBG(e) {
   if (localStorage.currentPic && (!(drawing))) {
     app.querySelector('.error').querySelector('.error__message').textContent = 'Чтобы загрузить новое изображение, пожалуйста, воспользуйтесь пунктом «Загрузить новое» в меню.';
     app.querySelector('.error').style.display = 'block';
+	hideError();
   } else {
     const pic = Array.from(e.dataTransfer.files)[0];
     if ((pic.type === 'image/jpeg') || (pic.type === 'image/png')) {
@@ -107,7 +126,6 @@ function sendPic(pic) {
 
     fetch('https://neto-api.herokuapp.com/pic', {
         body: formData,
-        // credentials: 'same-origin',
         method: 'POST'
     })
   .then((res) => {
@@ -428,53 +446,9 @@ function step() {
 
 
 
-// ------------------------ Комментарии ----------------------
-
+// ----------------------- Комментарии ---------------------
 const commentsArea = app.querySelector('.comments-area');
 
-function createCommentsForm() {
-  // создает коммент форму по шаблону
-  return browserJSEngine(commentsFormTemplate());
-}
-
-function addCommentsForm(x, y) {
-  // добавляет пустую коммент форму
-  commentsArea.appendChild(createCommentsForm());
-  const commentsFormNodeList = app.querySelectorAll('.comments__form');
-  const commentsFormLast = commentsFormNodeList[commentsFormNodeList.length - 1];
-  commentsFormLast.querySelector('.loader').style.display = 'none';
-  if (isHideComments) {
-    commentsFormLast.style.display = 'none';
-  }
-
-
-  commentsFormLast.style.left = `${x - 22}px`;
-  commentsFormLast.style.top = `${y - 14}px`;
-  commentsFormLast.style.zIndex = 2;
-
-  return commentsFormLast;
-}
-
-
-app.querySelector('.current-image').addEventListener('click', addNewComment)
-function addNewComment(e) {
-  // добавляю коммент форму, сохраняю координаты точки комментария
-  e.preventDefault();
-  const x = e.offsetX;
-  const y = e.offsetY;
-
-  const commentsFormLast = addCommentsForm(x, y);
-
-  // показываю прелоадер, отправляю коммент на сервер.
-  commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
-    e.preventDefault();
-    e.target.parentNode.querySelector('.loader').style.display = 'block';
-
-    const message = commentsFormLast.querySelector('.comments__input').value;
-
-    sendComment(x, y, message);
-  });
-}
 
 function commentTemplate(time, message) {
   // шаблон одного сообщения
@@ -575,6 +549,7 @@ function commentsFormTemplate() {
   }
 }
 
+
 function browserJSEngine(block) {
   // движок-обработчик для добавления DOM-элементов.
     if ((block === undefined) || (block === null) || (block === false)) {
@@ -617,6 +592,52 @@ function browserJSEngine(block) {
     return element;
 }
 
+
+function createCommentsForm() {
+  // создает коммент форму по шаблону
+  return browserJSEngine(commentsFormTemplate());
+}
+
+
+function hideAllCommentsBodies() {
+	const commentsForms = app.querySelectorAll('.comments__form');
+	for (let form of commentsForms) {
+		form.querySelector('.comments__body').style.display = 'none';
+	}
+}
+
+
+function addCommentsForm(x, y) {
+  // добавляет пустую коммент форму и возвращает ее
+  commentsArea.appendChild(createCommentsForm());
+  const commentsFormNodeList = app.querySelectorAll('.comments__form');
+  const commentsFormLast = commentsFormNodeList[commentsFormNodeList.length - 1];
+  commentsFormLast.querySelector('.loader').style.display = 'none';
+  if (isHideComments) {
+    commentsFormLast.style.display = 'none';
+  }
+
+  // При клике на маркер открывается тело формы, но не закрывается + скрывается тело других форм.
+  commentsFormLast.querySelector('.comments__marker-checkbox').addEventListener('click', (e) => {
+  	e.preventDefault();
+  	hideAllCommentsBodies();
+ 	commentsFormLast.querySelector('.comments__body').style.display = 'block';
+  });
+
+  // скрываю тело формы при клике на "Закрыть"
+  commentsFormLast.querySelector('.comments__close').addEventListener('click', (e) => {
+  	e.preventDefault();
+  	commentsFormLast.querySelector('.comments__body').style.display = 'none';
+  });
+
+  commentsFormLast.style.left = `${x - 22}px`;
+  commentsFormLast.style.top = `${y - 14}px`;
+  commentsFormLast.style.zIndex = 2;
+
+  return commentsFormLast;
+}
+
+
 function sendComment(x, y, message) {
   // отправка комментария на сервер
   var details = {
@@ -651,6 +672,27 @@ function sendComment(x, y, message) {
 }
 
 
+app.querySelector('.current-image').addEventListener('click', addNewComment);
+function addNewComment(e) {
+  // добавляю коммент форму, сохраняю координаты точки комментария
+  e.preventDefault();
+  const x = e.offsetX;
+  const y = e.offsetY;
+
+  const commentsFormLast = addCommentsForm(x, y)
+
+  // показываю прелоадер, отправляю коммент на сервер.
+  commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
+    e.preventDefault();
+    e.target.parentNode.querySelector('.loader').style.display = 'block';
+
+    const message = commentsFormLast.querySelector('.comments__input').value;
+
+    sendComment(x, y, message);
+  });
+}
+
+
 function searchCommentsForm(data) {
   // Возвращает коммент форму по координатам от сервера, если координаты не соответсвуют - создает новую по координатам
   const x = data.comment.left;
@@ -667,9 +709,7 @@ function searchCommentsForm(data) {
 }
 
 
-// ------------------------ Web Socket ----------------------
-
-
+// ----------------------- Web Socket ---------------------
 function initWebSocket(id) {
   ws = new WebSocket(`wss://neto-api.herokuapp.com/pic/${id}`)
 
@@ -750,5 +790,7 @@ function sendPngMask() {
 //   // }, 'image/png', 0.95);
 // }
 
-// menu.style.left = getCoordinatesMenu().x + 'px';
-// menu.style.top = getCoordinatesMenu().y + 'px';
+menu.style.left = getCoordinatesMenu().x + 'px';
+menu.style.top = getCoordinatesMenu().y + 'px';
+
+
