@@ -68,8 +68,8 @@ function setDefaults() {
   }
 
   if (localStorage.currentCoordinates) {  
-  menu.style.left = getCoordinatesMenu().x + 'px';
-  menu.style.top = getCoordinatesMenu().y + 'px';
+    menu.style.left = getCoordinatesMenu().x + 'px';
+    menu.style.top = getCoordinatesMenu().y + 'px';
   }
 }
 setDefaults();
@@ -86,7 +86,7 @@ function makeBG(e) {
   if (localStorage.currentPic && (!(drawing))) {
     app.querySelector('.error').querySelector('.error__message').textContent = 'Чтобы загрузить новое изображение, пожалуйста, воспользуйтесь пунктом «Загрузить новое» в меню.';
     app.querySelector('.error').style.display = 'block';
-	hideError();
+  hideError();
   } else {
     const pic = Array.from(e.dataTransfer.files)[0];
     if ((pic.type === 'image/jpeg') || (pic.type === 'image/png')) {
@@ -287,8 +287,8 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 
 // ----------------------- Рисование ---------------------
 function initCanvas(canvas) {
-	app.appendChild(canvas);
-	canvas.style.display = 'none'; // Скрыто, пока не нужен
+  app.appendChild(canvas);
+  canvas.style.display = 'none'; // Скрыто, пока не нужен
 }
 
 initCanvas(canvasServer);
@@ -520,7 +520,7 @@ function commentsFormTemplate() {
                 tag: 'input',
                 cls: 'comments__submit',
                     attrs: {
-                  type: "submit",
+                  type: "button",
                   value: "Отправить"
               }
             }
@@ -581,10 +581,10 @@ function createCommentsForm() {
 
 
 function hideAllCommentsBodies() {
-	const commentsForms = app.querySelectorAll('.comments__form');
-	for (let form of commentsForms) {
-		form.querySelector('.comments__body').style.display = 'none';
-	}
+  const commentsForms = app.querySelectorAll('.comments__form');
+  for (let form of commentsForms) {
+    form.querySelector('.comments__body').style.display = 'none';
+  }
 }
 
 
@@ -600,15 +600,15 @@ function addCommentsForm(x, y) {
 
   // При клике на маркер открывается тело формы, но не закрывается + скрывается тело других форм.
   commentsFormLast.querySelector('.comments__marker-checkbox').addEventListener('click', (e) => {
-  	e.preventDefault();
-  	hideAllCommentsBodies();
- 	commentsFormLast.querySelector('.comments__body').style.display = 'block';
+    e.preventDefault();
+    hideAllCommentsBodies();
+   commentsFormLast.querySelector('.comments__body').style.display = 'block';
   });
 
   // скрываю тело формы при клике на "Закрыть"
   commentsFormLast.querySelector('.comments__close').addEventListener('click', (e) => {
-  	e.preventDefault();
-  	commentsFormLast.querySelector('.comments__body').style.display = 'none';
+    e.preventDefault();
+    commentsFormLast.querySelector('.comments__body').style.display = 'none';
   });
 
   commentsFormLast.style.left = `${x - 22}px`;
@@ -758,16 +758,16 @@ menu.style.left = getCoordinatesMenu().x + 'px';
 menu.style.top = getCoordinatesMenu().y + 'px';
 
 function debounce(callback, delay) {
-	let timeout;
-	return () => {
-		clearTimeout(timeout);
-		timeout = setTimeout(function() {
-			timeout = null;
-			callback();
-		}, delay);
-	};
+  let timeout;
+  return () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(function() {
+      timeout = null;
+      callback();
+    }, delay);
+  };
 };
 
 const hideError = debounce(() => {
-	app.querySelector('.error').style.display = 'none';
+  app.querySelector('.error').style.display = 'none';
 }, 5000);
