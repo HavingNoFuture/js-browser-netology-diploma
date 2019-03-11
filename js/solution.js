@@ -2,36 +2,19 @@
 const app = document.querySelector('.app');
 const menu = app.querySelector('.menu');
 
+const canvasServer = document.createElement('canvas');
+canvasServer.classList.add('canvas-server');
+
+const canvasClient = document.createElement('canvas');
+canvasClient.classList.add('canvas-client');
+
 let isHideComments = false;
-let isDrawningMode = false;
-
-const canvas = document.createElement('canvas');
-
 let ws; // глобальная переменная web socket
-
 
 // Очистить local storage:
 // localStorage.currentPic = '';
 // localStorage.picId = ''
 // localStorage.currentCoordinates = '';
-
-
-function debounce(callback, delay) {
-	let timeout;
-	return () => {
-		clearTimeout(timeout);
-		timeout = setTimeout(function() {
-			timeout = null;
-			callback();
-		}, delay);
-	};
-};
-
-const hideError = debounce(() => {
-	app.querySelector('.error').style.display = 'none';
-}, 5000);
-
-
 
 
 // нужна для тестов на компе.
@@ -150,10 +133,9 @@ menu.querySelector('.comments').addEventListener('click', e => {
 
 
 menu.querySelector('.draw').addEventListener('click', e => {
-  isDrawningMode = true;
   switchMode('draw');
-  setWindowCanvas();
-  // drawing = true; // (?)
+  setWindowCanvas(canvasServer);
+  setWindowCanvas(canvasClient);
 });
 
 menu.querySelector('.share').addEventListener('click', e => {
@@ -165,7 +147,8 @@ function switchMode(mode) {
   for (let item of menuModes) {
     if (!(item.classList.contains(mode))) {
       item.style.display = 'none';
-      canvas.style.display = 'none';
+      canvasServer.style.display = 'none';
+      canvasClient.style.display = 'none';
     }
   }
   menu.querySelector('.burger').style.display = 'inline-block';
@@ -302,22 +285,20 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 
 
 
-// рисование
+// ----------------------- Рисование ---------------------
+function initCanvas(canvas) {
+	app.appendChild(canvas);
+	canvas.style.display = 'none'; // Скрыто, пока не нужен
+}
 
-// const canvas = document.createElement('canvas');
-app.appendChild(canvas);
+initCanvas(canvasServer);
+initCanvas(canvasClient);
 
-canvas.style.display = 'none'; // Скрыто, пока не нужен
-const ctx = canvas.getContext('2d');
+const ctxServer = canvasServer.getContext('2d');
+const ctxClient= canvasClient.getContext('2d');
 
-const BRUSH_RADIUS = 4;
-
-let curves = [];
-let drawing = false;
-let needsRepaint = false;
-
-// появляется и устанавливает границы окна canvas
-function setWindowCanvas() {
+function setWindowCanvas(canvas) {
+  // появляется и устанавливает границы окна canvas
   canvas.width = app.querySelector('.current-image').width;
   canvas.height = app.querySelector('.current-image').width;
   canvas.style.position = 'absolute';
@@ -329,89 +310,90 @@ function setWindowCanvas() {
   repaint();
 }
 
+const BRUSH_RADIUS = 4;
 
-// curves and figures
+let curves = [];
+let drawing = false;
+let needsRepaint = false;
+
+
 function circle(point) {
-    ctx.beginPath();
-    ctx.strokeStyle = point.color;
-    ctx.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
-    ctx.fill();
+    ctxClient.beginPath();
+    ctxClient.strokeStyle = point.color;
+    ctxClient.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
+    ctxClient.fill();
 }
 
 
 function smoothCurveBetween (p1, p2) {
   // Bezier control point
   const cp = p1.map((coord, idx) => (coord + p2[idx]) / 2);
-  ctx.quadraticCurveTo(...p1, ...cp);
+  ctxClient.quadraticCurveTo(...p1, ...cp);
 }
 
-function smoothCurve(points) {
-  ctx.beginPath();
-  ctx.lineWidth = BRUSH_RADIUS;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
 
-  ctx.moveTo(...points[0]);
+function smoothCurve(points) {
+  ctxClient.beginPath();
+  ctxClient.lineWidth = BRUSH_RADIUS;
+  ctxClient.lineJoin = 'round';
+  ctxClient.lineCap = 'round';
+
+  ctxClient.moveTo(...points[0]);
 
   for(let i = 1; i < points.length - 1; i++) {
     smoothCurveBetween(points[i], points[i + 1]);
   }
 
-  ctx.stroke();
+  ctxClient.stroke();
 }
 
-// events
+
 function makePoint(x, y) {
   return [x, y];
 };
 
 
-canvas.addEventListener("mousedown", (evt) => {
+canvasClient.addEventListener("mousedown", (evt) => {
   drawing = true;
 
-  const curve = []; // create a new curve
+  const curve = [];
 
   const point = [evt.offsetX, evt.offsetY];
   point.color = currentColor;
 
-  curve.push(point); // add a new point
-  curves.push(curve); // add the curve to the array of curves
+  curve.push(point);
+  curves.push(curve);
   needsRepaint = true;
 });
 
-canvas.addEventListener("mouseup", (evt) => {
+canvasClient.addEventListener("mouseup", (evt) => {
   drawing = false;
   sendPngMask();
   // clearInterval(intervalID);
 });
 
-canvas.addEventListener("mouseleave", (evt) => {
+canvasClient.addEventListener("mouseleave", (evt) => {
   drawing = false;
 });
 
-canvas.addEventListener("mousemove", (evt) => {
+canvasClient.addEventListener("mousemove", (evt) => {
   if (drawing) {
-    // add a point
     const point = makePoint(evt.offsetX, evt.offsetY)
-    ctx.fillStyle = currentColor;
+    ctxClient.fillStyle = currentColor;
     curves[curves.length - 1].push(point);
     needsRepaint = true;
   }
 });
 
-// rendering
+
 function repaint () {
-  // clear before repainting
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // rendering
+  ctxClient.clearRect(0, 0, canvasClient.width, canvasClient.height);
 
-  curves
-    .forEach((curve) => {
-      // first...
-      circle(curve[0]);
-
-      // the body is compraised of lines
-      smoothCurve(curve);
-    });
+  curves.forEach((curve) => {
+    circle(curve[0]);
+    smoothCurve(curve);
+  });
 }
 
 function tick () {
@@ -419,7 +401,6 @@ function tick () {
     repaint();
     needsRepaint = false;
   }
-
   window.requestAnimationFrame(tick);
 }
 
@@ -732,14 +713,14 @@ function initWebSocket(id) {
       console.log(data);
       let date = new Date(data.comment.timestamp);
 
-        const options = {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  };
+      const options = {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      };
 
       // Определяю comment form и вставляю в неe комментарий
       const currentCommentsForm = searchCommentsForm(data);
@@ -749,16 +730,17 @@ function initWebSocket(id) {
       currentCommentsForm.querySelector('.loader').style.display = 'none';
       currentCommentsForm.querySelector('.comments__body').insertBefore(
         browserJSEngine(commentTemplate(date.toLocaleString("ru", options), data.comment.message)),
-        lastCommentItem)
+        lastCommentItem);
     }
 
     if (data.event == 'mask') {
       const img = new Image();
-    img.src = data.url;
-    img.addEventListener("load", function() {
-      console.log('load img')
-      ctx.drawImage(img, 0, 0);
-    }, false);
+      img.src = data.url;
+      img.addEventListener("load", function() {
+        console.log('load img')
+        ctxServer.drawImage(img, 0, 0);
+        ctxClient.clearRect(0, 0, canvasClient.width, canvasClient.height);
+      }, false);
       img.src = data.url;
       console.log(data.url);
     }
@@ -767,30 +749,25 @@ function initWebSocket(id) {
 
 
 function sendPngMask() {
-    canvas.toBlob(blob => {
-        // if (!wsGlobal) return;
-        // const curvesNumberToRemoveNow = curvesNumberToRemoveNextTime;
-        // curves.splice(0, curvesNumberToRemoveNow);
-        // curvesNumberToRemoveNextTime = curves.length - 1;
-
+    canvasClient.toBlob(blob => {
         ws.send(blob);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }, 'image/png', 0.95);
 }
   
-// function createPngFromMask() {
-//   canvas.toBlob(function(blob){
-//       link.href = URL.createObjectURL(blob);
-//       console.log(blob);
-//       console.log(link.href); // this line should be here
-//   },'image/png');
-//   // return canvas.toBlob(function(blob) {
-//   //   const url = URL.createObjectURL(blob);
-//  //      URL.revokeObjectURL(url);
-//   // }, 'image/png', 0.95);
-// }
-
 menu.style.left = getCoordinatesMenu().x + 'px';
 menu.style.top = getCoordinatesMenu().y + 'px';
 
+function debounce(callback, delay) {
+	let timeout;
+	return () => {
+		clearTimeout(timeout);
+		timeout = setTimeout(function() {
+			timeout = null;
+			callback();
+		}, delay);
+	};
+};
 
+const hideError = debounce(() => {
+	app.querySelector('.error').style.display = 'none';
+}, 5000);
