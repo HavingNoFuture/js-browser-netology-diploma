@@ -80,13 +80,13 @@ app.addEventListener('dragover', e => {
   e.preventDefault();
 });
 
-// Проверяет на ошибки и отправляет пику.
+// Проверяет на ошибки и отправляет пикчу.
 function makeBG(e) {
   e.preventDefault();
   if (localStorage.currentPic && (!(drawing))) {
     app.querySelector('.error').querySelector('.error__message').textContent = 'Чтобы загрузить новое изображение, пожалуйста, воспользуйтесь пунктом «Загрузить новое» в меню.';
     app.querySelector('.error').style.display = 'block';
-  hideError();
+    hideError();
   } else {
     const pic = Array.from(e.dataTransfer.files)[0];
     if ((pic.type === 'image/jpeg') || (pic.type === 'image/png')) {
@@ -147,8 +147,6 @@ function switchMode(mode) {
   for (let item of menuModes) {
     if (!(item.classList.contains(mode))) {
       item.style.display = 'none';
-      canvasServer.style.display = 'none';
-      canvasClient.style.display = 'none';
     }
   }
   menu.querySelector('.burger').style.display = 'inline-block';
@@ -602,13 +600,17 @@ function addCommentsForm(x, y) {
   commentsFormLast.querySelector('.comments__marker-checkbox').addEventListener('click', (e) => {
     e.preventDefault();
     hideAllCommentsBodies();
-   commentsFormLast.querySelector('.comments__body').style.display = 'block';
+    commentsFormLast.querySelector('.comments__body').style.display = 'block';
   });
 
   // скрываю тело формы при клике на "Закрыть"
   commentsFormLast.querySelector('.comments__close').addEventListener('click', (e) => {
     e.preventDefault();
-    commentsFormLast.querySelector('.comments__body').style.display = 'none';
+    if (commentsFormLast.querySelector('.comment__message') === null) {
+        commentsFormLast.parentNode.removeChild(commentsFormLast)
+    } else {
+        commentsFormLast.querySelector('.comments__body').style.display = 'none';
+    }
   });
 
   // отправляю сообщение при клике на "Отправить"
@@ -642,6 +644,7 @@ function sendComment(x, y, message) {
   for (var property in details) {
     var encodedKey = encodeURIComponent(property);
     var encodedValue = encodeURIComponent(details[property]);
+    console.log(message, encodedValue)
     formBody.push(encodedKey + "=" + encodedValue);
   }
   formBody = formBody.join("&");
@@ -667,7 +670,8 @@ function sendComment(x, y, message) {
 app.querySelector('.current-image').addEventListener('click', e => {
 	// добавляю коммент форму в клик
 	e.preventDefault();
-	addCommentsForm(e.offsetX, e.offsetY);
+	const commentForm = addCommentsForm(e.offsetX, e.offsetY);
+  commentForm.querySelector('.comments__body').style.display = 'block';
 });
 
 
