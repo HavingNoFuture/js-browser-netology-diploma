@@ -21,11 +21,11 @@ let ws; // глобальная переменная web socket
 
 
 function activateComeentsMode() {
-  app.querySelector('.canvas-client').style.zIndex = 2;
+  app.querySelector('.canvas-client').style.zIndex = 1;
 }
 
 function deactivateComeentsMode() {
-  app.querySelector('.canvas-client').style.zIndex = 4;
+  app.querySelector('.canvas-client').style.zIndex = 3;
 }
 
 
@@ -66,6 +66,26 @@ function setDefaults() {
     // обновляю url в меню
     const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${sessionStorage.picId}`;
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
+
+    fetch(`https://neto-api.herokuapp.com/pic/${sessionStorage.picId}`, {
+      method: 'GET'
+      })
+    .then((res) => {
+      return res.json();
+    })
+    .then((data) => {
+      // Получаю комменты к пикче и публикую их
+      const comments = data.comments
+      if (comments) {
+        for (let key in comments) {
+          publicateComment(comments[key]);
+        }
+      }
+
+      // Получаю маску и публикаю ее
+      publicateMask(data.mask);
+    })
+    .catch((err) => {console.log(err)})
   } else {
     app.querySelector('.error').style.display = 'none';
     app.querySelector('.image-loader').style.display = 'none';
@@ -78,8 +98,7 @@ function setDefaults() {
       }
     }
   }
-  setWindowCanvas(canvasServer);
-  setWindowCanvas(canvasClient);
+
   if (sessionStorage.currentCoordinates) {  
     menu.style.left = getCoordinatesMenu().x + 'px';
     menu.style.top = getCoordinatesMenu().y + 'px';
@@ -133,6 +152,12 @@ function sendPic(pic) {
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
     switchMode('share');
     initWebSocket(data.id);
+
+    const comments = app.querySelectorAll('.comments__form');
+    for (let comment of comments) {
+        comment.parentNode.removeChild(comment);
+    }
+    ctxServer.clearRect(0, 0, canvasClient.width, canvasClient.height);
   })
   .catch((err) => {console.log(err)})
 }
@@ -300,24 +325,30 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 // ----------------------- Рисование ---------------------
 function initCanvas(canvas) {
   app.querySelector('.comments-area').appendChild(canvas);
-  canvas.style.display = 'none'; // Скрыто, пока не нужен
+  canvas.style.position = 'absolute';
+  canvas.style.zIndex = 2;
+  canvas.style.display = 'block';
+  canvas.style.transform = 'translate(-50%, -50%)';
+  canvas.style.left = '50%';
+  canvas.style.top = '50%';
 }
 
 initCanvas(canvasServer);
 initCanvas(canvasClient);
 
+
+
 function setWindowCanvas(canvas) {
   // появляется и устанавливает границы окна canvas
   canvas.width = app.querySelector('.current-image').width;
   canvas.height = app.querySelector('.current-image').height;
-  canvas.style.position = 'absolute';
-  canvas.style.zIndex = 3;
-  canvas.style.transform = 'translate(-50%, -50%)';
-  canvas.style.left = '50%';
-  canvas.style.top = '50%';
-  canvas.style.display = 'block';
   repaint();
 }
+
+app.querySelector('.current-image').addEventListener("load", () => {
+  setWindowCanvas(canvasServer);
+  setWindowCanvas(canvasClient);
+});
 
 function circle(point) {
     ctxClient.beginPath();
@@ -427,7 +458,16 @@ function step() {
     }, 1000 / fps);
 }
 
+function publicateMask(url) {
+  // Получает урл маски. Публикует маску на клиентском канвасе.
+  const img = new Image();
+  img.src = url;
 
+  img.addEventListener("load", function() {
+    console.log('load img')
+    ctxServer.drawImage(img, 0, 0);
+  }, false);
+}
 
 // ----------------------- Комментарии ---------------------
 const commentsArea = app.querySelector('.comments-area');
@@ -681,8 +721,8 @@ app.querySelector('.canvas-server').addEventListener('click', e => {
 
 function searchCommentsForm(data) {
   // Возвращает коммент форму по координатам от сервера, если координаты не соответсвуют - создает новую по координатам
-  const x = data.comment.left;
-  const y = data.comment.top;
+  const x = data.left;
+  const y = data.top;
 
   const commentsForms = commentsArea.querySelectorAll('.comments__form');
   for (let form of commentsForms) {
@@ -695,11 +735,28 @@ function searchCommentsForm(data) {
 }
 
 
-app.querySelector('.current-image').addEventListener("load", () => {
-  console.log('resize');
-  setWindowCanvas(canvasServer);
-  setWindowCanvas(canvasClient);
-});
+function publicateComment(data) {
+  let date = new Date(data.timestamp);
+
+  const options = {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  };
+
+  // Определяю comment form и вставляю в неe комментарий
+  const currentCommentsForm = searchCommentsForm(data);
+  const commentItems = currentCommentsForm.querySelectorAll('.comment');
+  const lastCommentItem = commentItems[commentItems.length - 1]
+
+  currentCommentsForm.querySelector('.loader').style.display = 'none';
+  currentCommentsForm.querySelector('.comments__body').insertBefore(
+    browserJSEngine(commentTemplate(date.toLocaleString("ru", options), data.message)),
+    lastCommentItem);        
+}
 
 // ----------------------- Web Socket ---------------------
 function initWebSocket(id) {
@@ -721,41 +778,14 @@ function initWebSocket(id) {
     }
 
     if (data.event == 'comment') {
+      publicateComment(data.comment);
       console.log(data);
-      let date = new Date(data.comment.timestamp);
-
-      const options = {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      };
-
-      // Определяю comment form и вставляю в неe комментарий
-      const currentCommentsForm = searchCommentsForm(data);
-      const commentItems = currentCommentsForm.querySelectorAll('.comment');
-      const lastCommentItem = commentItems[commentItems.length - 1]
-
-      currentCommentsForm.querySelector('.loader').style.display = 'none';
-      currentCommentsForm.querySelector('.comments__body').insertBefore(
-        browserJSEngine(commentTemplate(date.toLocaleString("ru", options), data.comment.message)),
-        lastCommentItem);
     }
 
     if (data.event == 'mask') {
+      publicateMask(data.url);
+      ctxClient.clearRect(0, 0, canvasClient.width, canvasClient.height);
       console.log(data);
-      const img = new Image();
-      img.src = data.url;
-
-      img.addEventListener("load", function() {
-        console.log('load img')
-        ctxServer.drawImage(img, 0, 0);
-        ctxClient.clearRect(0, 0, canvasClient.width, canvasClient.height);
-      }, false);
-
-      img.src = data.url;
     }
   });
 }
