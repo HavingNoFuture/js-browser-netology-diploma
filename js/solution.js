@@ -4,9 +4,17 @@ const menu = app.querySelector('.menu');
 
 const canvasServer = document.createElement('canvas');
 canvasServer.classList.add('canvas-server');
+const ctxServer = canvasServer.getContext('2d');
 
 const canvasClient = document.createElement('canvas');
 canvasClient.classList.add('canvas-client');
+const ctxClient= canvasClient.getContext('2d');
+
+// Рисование
+const BRUSH_RADIUS = 4;
+let curves = [];
+let drawing = false;
+let needsRepaint = false;
 
 let isHideComments = false;
 let ws; // глобальная переменная web socket
@@ -70,7 +78,8 @@ function setDefaults() {
       }
     }
   }
-
+  setWindowCanvas(canvasServer);
+  setWindowCanvas(canvasClient);
   if (sessionStorage.currentCoordinates) {  
     menu.style.left = getCoordinatesMenu().x + 'px';
     menu.style.top = getCoordinatesMenu().y + 'px';
@@ -133,17 +142,18 @@ function sendPic(pic) {
 // переключение меню
 menu.querySelector('.comments').addEventListener('click', e => {
   switchMode('comments');
+  activateComeentsMode();
 });
 
 
 menu.querySelector('.draw').addEventListener('click', e => {
   switchMode('draw');
-  setWindowCanvas(canvasServer);
-  setWindowCanvas(canvasClient);
+  deactivateComeentsMode();
 });
 
 menu.querySelector('.share').addEventListener('click', e => {
   switchMode('share');
+  activateComeentsMode();
 });
 
 function switchMode(mode) {
@@ -289,35 +299,25 @@ document.addEventListener('touchend', event => drop(event.changedTouches[0]));
 
 // ----------------------- Рисование ---------------------
 function initCanvas(canvas) {
-  app.appendChild(canvas);
+  app.querySelector('.comments-area').appendChild(canvas);
   canvas.style.display = 'none'; // Скрыто, пока не нужен
 }
 
 initCanvas(canvasServer);
 initCanvas(canvasClient);
 
-const ctxServer = canvasServer.getContext('2d');
-const ctxClient= canvasClient.getContext('2d');
-
 function setWindowCanvas(canvas) {
   // появляется и устанавливает границы окна canvas
   canvas.width = app.querySelector('.current-image').width;
-  canvas.height = app.querySelector('.current-image').width;
+  canvas.height = app.querySelector('.current-image').height;
   canvas.style.position = 'absolute';
-  canvas.style.zIndex = 5;
+  canvas.style.zIndex = 3;
   canvas.style.transform = 'translate(-50%, -50%)';
   canvas.style.left = '50%';
   canvas.style.top = '50%';
   canvas.style.display = 'block';
   repaint();
 }
-
-const BRUSH_RADIUS = 4;
-
-let curves = [];
-let drawing = false;
-let needsRepaint = false;
-
 
 function circle(point) {
     ctxClient.beginPath();
@@ -630,7 +630,7 @@ function addCommentsForm(x, y) {
 
   commentsFormLast.style.left = `${x - 22}px`;
   commentsFormLast.style.top = `${y - 14}px`;
-  commentsFormLast.style.zIndex = 2;
+  commentsFormLast.style.zIndex = 10;
 
   return commentsFormLast;
 }
@@ -671,16 +671,10 @@ function sendComment(x, y, message) {
 }
 
 
-app.querySelector('.current-image').addEventListener('click', e => {
-<<<<<<< HEAD
+app.querySelector('.canvas-server').addEventListener('click', e => {
   // добавляю коммент форму в клик
   e.preventDefault();
   const commentForm = addCommentsForm(e.offsetX, e.offsetY);
-=======
-	// добавляю коммент форму в клик
-	e.preventDefault();
-	const commentForm = addCommentsForm(e.offsetX, e.offsetY);
->>>>>>> eaaa7f265860556c20cf816ee07d97d80389a1c7
   commentForm.querySelector('.comments__body').style.display = 'block';
 });
 
@@ -700,6 +694,12 @@ function searchCommentsForm(data) {
   return addCommentsForm(x, y);
 }
 
+
+app.querySelector('.current-image').addEventListener("load", () => {
+  console.log('resize');
+  setWindowCanvas(canvasServer);
+  setWindowCanvas(canvasClient);
+});
 
 // ----------------------- Web Socket ---------------------
 function initWebSocket(id) {
