@@ -672,9 +672,15 @@ function sendComment(x, y, message) {
 
 
 app.querySelector('.current-image').addEventListener('click', e => {
+<<<<<<< HEAD
   // добавляю коммент форму в клик
   e.preventDefault();
   const commentForm = addCommentsForm(e.offsetX, e.offsetY);
+=======
+	// добавляю коммент форму в клик
+	e.preventDefault();
+	const commentForm = addCommentsForm(e.offsetX, e.offsetY);
+>>>>>>> eaaa7f265860556c20cf816ee07d97d80389a1c7
   commentForm.querySelector('.comments__body').style.display = 'block';
 });
 
