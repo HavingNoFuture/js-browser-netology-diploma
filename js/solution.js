@@ -11,26 +11,30 @@ canvasClient.classList.add('canvas-client');
 let isHideComments = false;
 let ws; // глобальная переменная web socket
 
-// Очистить local storage:
-// localStorage.currentPic = '';
-// localStorage.picId = ''
-// localStorage.currentCoordinates = '';
+
+function activateComeentsMode() {
+  app.querySelector('.canvas-client').style.zIndex = 2;
+}
+
+function deactivateComeentsMode() {
+  app.querySelector('.canvas-client').style.zIndex = 4;
+}
 
 
 // нужна для тестов на компе.
 menu.querySelector('.share-tools').querySelector('.menu__url').value = document.location.href.split('?id=')[0];
 
-// сохранение координат меню в local storage
+// сохранение координат меню в sessionStorage
 function saveCoordinatesMenu(x, y) {
-  localStorage.currentCoordinates = JSON.stringify({
+  sessionStorage.currentCoordinates = JSON.stringify({
     'x': x,
     'y': y
   });
 }
 
-// получение координат из local storage
+// получение координат из sessionStorage
 function getCoordinatesMenu() {
-  return JSON.parse(localStorage.currentCoordinates);
+  return JSON.parse(sessionStorage.currentCoordinates);
 }
 
 
@@ -39,20 +43,20 @@ let picId = document.location.href.split('?id=')[1];
 // Задаю состояние по умолчанию + сохраняю последнее состояние
 function setDefaults() {
   // сюда попаду и при переходе по ссылке и при обновлении страницы.
-  if ((picId != undefined) || (localStorage.currentPic)) {
+  if ((picId != undefined) || (sessionStorage.currentPic)) {
     // ls.currentPic и ls.picId задаются при initWebSocket().
-  app.querySelector('.current-image').src = localStorage.currentPic;
+  app.querySelector('.current-image').src = sessionStorage.currentPic;
     if (picId != undefined) {
       // сюда попали, если перешли по ссылке
       switchMode('comments');
-      localStorage.picId = picId;
+      sessionStorage.picId = picId;
     }
     // При обновлении страницы ls.picId и ls.currentPic уже будут.
-    initWebSocket(localStorage.picId);
+    initWebSocket(sessionStorage.picId);
 
 
     // обновляю url в меню
-    const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${localStorage.picId}`;
+    const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${sessionStorage.picId}`;
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
   } else {
     app.querySelector('.error').style.display = 'none';
@@ -67,7 +71,7 @@ function setDefaults() {
     }
   }
 
-  if (localStorage.currentCoordinates) {  
+  if (sessionStorage.currentCoordinates) {  
     menu.style.left = getCoordinatesMenu().x + 'px';
     menu.style.top = getCoordinatesMenu().y + 'px';
   }
@@ -80,13 +84,13 @@ app.addEventListener('dragover', e => {
   e.preventDefault();
 });
 
-// Проверяет на ошибки и отправляет пику.
+// Проверяет на ошибки и отправляет пикчу.
 function makeBG(e) {
   e.preventDefault();
-  if (localStorage.currentPic && (!(drawing))) {
+  if (sessionStorage.currentPic && (!(drawing))) {
     app.querySelector('.error').querySelector('.error__message').textContent = 'Чтобы загрузить новое изображение, пожалуйста, воспользуйтесь пунктом «Загрузить новое» в меню.';
     app.querySelector('.error').style.display = 'block';
-  hideError();
+    hideError();
   } else {
     const pic = Array.from(e.dataTransfer.files)[0];
     if ((pic.type === 'image/jpeg') || (pic.type === 'image/png')) {
@@ -147,8 +151,6 @@ function switchMode(mode) {
   for (let item of menuModes) {
     if (!(item.classList.contains(mode))) {
       item.style.display = 'none';
-      canvasServer.style.display = 'none';
-      canvasClient.style.display = 'none';
     }
   }
   menu.querySelector('.burger').style.display = 'inline-block';
@@ -602,18 +604,22 @@ function addCommentsForm(x, y) {
   commentsFormLast.querySelector('.comments__marker-checkbox').addEventListener('click', (e) => {
     e.preventDefault();
     hideAllCommentsBodies();
-   commentsFormLast.querySelector('.comments__body').style.display = 'block';
+    commentsFormLast.querySelector('.comments__body').style.display = 'block';
   });
 
   // скрываю тело формы при клике на "Закрыть"
   commentsFormLast.querySelector('.comments__close').addEventListener('click', (e) => {
     e.preventDefault();
-    commentsFormLast.querySelector('.comments__body').style.display = 'none';
+    if (commentsFormLast.querySelector('.comment__message') === null) {
+        commentsFormLast.parentNode.removeChild(commentsFormLast)
+    } else {
+        commentsFormLast.querySelector('.comments__body').style.display = 'none';
+    }
   });
 
   // отправляю сообщение при клике на "Отправить"
   commentsFormLast.querySelector('.comments__submit').addEventListener('click', e => {
-  	e.preventDefault();
+    e.preventDefault();
     const currentCommentForm = e.target.parentNode.parentNode;
     const message = currentCommentForm.querySelector('.comments__input').value;
 
@@ -642,11 +648,12 @@ function sendComment(x, y, message) {
   for (var property in details) {
     var encodedKey = encodeURIComponent(property);
     var encodedValue = encodeURIComponent(details[property]);
+    console.log(message, encodedValue)
     formBody.push(encodedKey + "=" + encodedValue);
   }
   formBody = formBody.join("&");
 
-  fetch(`https://neto-api.herokuapp.com/pic/${localStorage.picId}/comments`, {
+  fetch(`https://neto-api.herokuapp.com/pic/${sessionStorage.picId}/comments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
@@ -665,9 +672,10 @@ function sendComment(x, y, message) {
 
 
 app.querySelector('.current-image').addEventListener('click', e => {
-	// добавляю коммент форму в клик
-	e.preventDefault();
-	addCommentsForm(e.offsetX, e.offsetY);
+  // добавляю коммент форму в клик
+  e.preventDefault();
+  const commentForm = addCommentsForm(e.offsetX, e.offsetY);
+  commentForm.querySelector('.comments__body').style.display = 'block';
 });
 
 
@@ -696,9 +704,9 @@ function initWebSocket(id) {
     const data = JSON.parse(e.data);
 
     if (data.event == 'pic') {
-      localStorage.picId = data.pic.id;
-      localStorage.currentPic = data.pic.url;
-      app.querySelector('.current-image').src = localStorage.currentPic;
+      sessionStorage.picId = data.pic.id;
+      sessionStorage.currentPic = data.pic.url;
+      app.querySelector('.current-image').src = sessionStorage.currentPic;
       console.log(data);
     }
 
