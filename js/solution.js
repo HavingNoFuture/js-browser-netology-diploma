@@ -19,16 +19,6 @@ let needsRepaint = false;
 let isHideComments = false;
 let ws; // глобальная переменная web socket
 
-
-function activateComeentsMode() {
-  app.querySelector('.canvas-client').style.zIndex = 1;
-}
-
-function deactivateComeentsMode() {
-  app.querySelector('.canvas-client').style.zIndex = 3;
-}
-
-
 // нужна для тестов на компе.
 menu.querySelector('.share-tools').querySelector('.menu__url').value = document.location.href.split('?id=')[0];
 
@@ -56,7 +46,7 @@ function setDefaults() {
   app.querySelector('.current-image').src = sessionStorage.currentPic;
     if (picId != undefined) {
       // сюда попали, если перешли по ссылке
-      switchMode('comments');
+      switchMenu('comments');
       sessionStorage.picId = picId;
     }
     // При обновлении страницы ls.picId и ls.currentPic уже будут.
@@ -99,10 +89,11 @@ function setDefaults() {
     }
   }
 
-  if (sessionStorage.currentCoordinates) {  
+  if (sessionStorage.currentCoordinates != undefined) {  
     menu.style.left = getCoordinatesMenu().x + 'px';
     menu.style.top = getCoordinatesMenu().y + 'px';
   }
+
 }
 setDefaults();
 
@@ -150,7 +141,7 @@ function sendPic(pic) {
     app.querySelector('.image-loader').style.display = 'none';
     const url = app.querySelector('.menu__url').value.split('?id=')[0] + `?id=${data.id}`;
     menu.querySelector('.share-tools').querySelector('.menu__url').value = url;
-    switchMode('share');
+    switchMenu('share');
     initWebSocket(data.id);
 
     const comments = app.querySelectorAll('.comments__form');
@@ -162,35 +153,49 @@ function sendPic(pic) {
   .catch((err) => {console.log(err)})
 }
 
-
-
-// переключение меню
-menu.querySelector('.comments').addEventListener('click', e => {
-  switchMode('comments');
-  activateComeentsMode();
-});
-
-
-menu.querySelector('.draw').addEventListener('click', e => {
-  switchMode('draw');
-  deactivateComeentsMode();
-});
-
-menu.querySelector('.share').addEventListener('click', e => {
-  switchMode('share');
-  activateComeentsMode();
-});
-
-function switchMode(mode) {
-  const menuModes = Array.from(menu.querySelectorAll('.mode'));
+function switchMenu(mode) {
+  // Переключаю меню
+  const menuModes = Array.from(menu.querySelectorAll('.menu__item'));
   for (let item of menuModes) {
     if (!(item.classList.contains(mode))) {
       item.style.display = 'none';
     }
   }
+  menu.querySelector('.drag').style.display = 'inline-block';
+  menu.querySelector(`.${mode}`).style.display = 'inline-block';
   menu.querySelector('.burger').style.display = 'inline-block';
   menu.querySelector(`.${mode}-tools`).style.display = 'inline-block';
 }
+
+function activeMode(mode) {
+  if (mode === undefined) {
+    switchMenu('share');
+    return
+  }
+
+  if (mode === 'comments') {
+    app.querySelector('.canvas-client').style.zIndex = 1;
+  } else {
+    app.querySelector('.canvas-client').style.zIndex = 3;
+  }
+
+  switchMenu(mode);
+  sessionStorage.mode = mode;
+}
+
+
+// переключение меню
+menu.querySelector('.comments').addEventListener('click', e => {
+  activeMode('comments');
+});
+
+menu.querySelector('.draw').addEventListener('click', e => {
+  activeMode('draw');
+});
+
+menu.querySelector('.share').addEventListener('click', e => {
+  activeMode('share');
+});
 
 
 menu.querySelector('.burger').addEventListener('click', onBurgerBtnClick);
@@ -429,11 +434,25 @@ function repaint () {
   });
 }
 
+function checkBadMenu() {
+// Проверяет не сломалось ли меню
+  if (menu.offsetHeight > 70) {
+    // const menuCoor = menu.getBoundingClientRect();
+    // const clientWidth  = document.documentElement.clientWidth;
+    // const clientHeight  = document.documentElement.clientHeight;
+
+    // menu.style.left = `${clientWidth - menu.clientWidth - 6}px`;
+    menu.style.left = (app.offsetWidth - menu.offsetWidth - 100) + 'px';
+  }
+}
+
+
 function tick () {
   if(needsRepaint) {
     repaint();
     needsRepaint = false;
   }
+  checkBadMenu();
   window.requestAnimationFrame(tick);
 }
 
@@ -814,3 +833,5 @@ function debounce(callback, delay) {
 const hideError = debounce(() => {
   app.querySelector('.error').style.display = 'none';
 }, 5000);
+
+activeMode(sessionStorage.mode);
