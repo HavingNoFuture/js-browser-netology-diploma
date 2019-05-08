@@ -564,7 +564,7 @@ function commentsFormTemplate() {
           {
             tag: 'textarea',
             cls: 'comments__input',
-                attrs: {
+            attrs: {
               type: "checkbox",
               placeholder: "Напишите ответ..."
           }
@@ -572,7 +572,7 @@ function commentsFormTemplate() {
           {
             tag: 'input',
             cls: 'comments__close',
-                attrs: {
+            attrs: {
               type: "button",
               value: "Закрыть"
           }
@@ -580,7 +580,7 @@ function commentsFormTemplate() {
           {
             tag: 'input',
             cls: 'comments__submit',
-                attrs: {
+            attrs: {
               type: "submit",
               value: "Отправить"
             }
@@ -595,40 +595,41 @@ function commentsFormTemplate() {
 function browserJSEngine(block) {
   // движок-обработчик для добавления DOM-элементов.
     if ((block === undefined) || (block === null) || (block === false)) {
-        return document.createTextNode('');
+      return document.createTextNode('');
     }
     if ((typeof block === 'number') || (typeof block === 'string') || (block === true)) {
-        return document.createTextNode(block.toString());
+      return document.createTextNode(block.toString());
     }
 
     if (Array.isArray(block)) {
-        return block.reduce((f, item) => {
-            f.appendChild(
-                browserJSEngine(item)
-            );
+      return block.reduce((f, item) => {
+        f.appendChild(
+          browserJSEngine(item)
+        );
 
-            return f;
-        }, document.createDocumentFragment());
+        return f;
+      }, document.createDocumentFragment());
     }
 
     const element = document.createElement(block.tag);
 
     if (block.cls) {
-        element.classList.add(...[].concat(block.cls));
+      element.classList.add(...[].concat(block.cls));
     }
 
     if (block.attrs) {
-        Object.keys(block.attrs).forEach(key => {
-            element.setAttribute(key, block.attrs[key]);
-        });
+      Object.keys(block.attrs).forEach(key => {
+        element.setAttribute(key, block.attrs[key]);
+      });
     }
 
+
     if (block.content) {
-        element.appendChild(browserJSEngine(block.content));
+      element.appendChild(browserJSEngine(block.content));
     }
 
     if (block.text) {
-        element.textContent = block.text;
+      element.textContent = block.text;
     }
 
     return element;
@@ -707,7 +708,6 @@ function sendComment(x, y, message) {
   for (var property in details) {
     var encodedKey = encodeURIComponent(property);
     var encodedValue = encodeURIComponent(details[property]);
-    console.log(message, encodedValue)
     formBody.push(encodedKey + "=" + encodedValue);
   }
   formBody = formBody.join("&");
