@@ -8,7 +8,7 @@ const ctxServer = canvasServer.getContext('2d');
 
 const canvasClient = document.createElement('canvas');
 canvasClient.classList.add('canvas-client');
-const ctxClient= canvasClient.getContext('2d');
+const ctxClient = canvasClient.getContext('2d');
 
 // Рисование
 const BRUSH_RADIUS = 4;
@@ -40,10 +40,11 @@ let picId = document.location.href.split('?id=')[1];
 
 // Задаю состояние по умолчанию + сохраняю последнее состояние
 function setDefaults() {
+	console.log('setDefaults')
   // сюда попаду и при переходе по ссылке и при обновлении страницы.
   if ((picId != undefined) || (sessionStorage.currentPic)) {
     // ls.currentPic и ls.picId задаются при initWebSocket().
-  app.querySelector('.current-image').src = sessionStorage.currentPic;
+  	app.querySelector('.current-image').src = sessionStorage.currentPic;
     if (picId != undefined) {
       // сюда попали, если перешли по ссылке
       switchMenu('comments');
@@ -73,6 +74,8 @@ function setDefaults() {
       }
 
       // Получаю маску и публикаю ее
+      console.log(data.mask)
+      const dab = data.mask.split('?')[0]
       publicateMask(data.mask);
     })
     .catch((err) => {console.log(err)})
@@ -458,34 +461,19 @@ function tick () {
 
 tick();
 
-
-
-let intervalID = null;
-
-// intervalID = setInterval(() => {
-  //   sendPngMask();
-  // }, 1000);
-
-// отправить маску
-var fps = 1;
-function step() {
-  sendPngMask();
-  console.log(x1++)
-    intervalID = setTimeout(function() {
-        requestAnimationFrame(step);
-        // Drawing code goes here
-    }, 1000 / fps);
-}
-
 function publicateMask(url) {
   // Получает урл маски. Публикует маску на клиентском канвасе.
   const img = new Image();
-  img.src = url;
 
   img.addEventListener("load", function() {
-    console.log('load img')
-    ctxServer.drawImage(img, 0, 0);
+    function dada() {
+      ctxServer.drawImage(img, 0, 0);
+      console.log('load img')
+    }
+    setTimeout(dada, 500);
   }, false);
+
+  img.src = url;
 }
 
 // ----------------------- Комментарии ---------------------
@@ -802,7 +790,8 @@ function initWebSocket(id) {
     }
 
     if (data.event == 'mask') {
-      publicateMask(data.url);
+      canvasServer.style.background = `url(${JSON.parse(event.data).url})`;
+      // publicateMask(data.url);
       ctxClient.clearRect(0, 0, canvasClient.width, canvasClient.height);
       console.log(data);
     }
