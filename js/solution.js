@@ -350,7 +350,6 @@ function setWindowCanvas(canvas) {
   // появляется и устанавливает границы окна canvas
   canvas.width = app.querySelector('.current-image').width;
   canvas.height = app.querySelector('.current-image').height;
-  repaint();
 }
 
 app.querySelector('.current-image').addEventListener("load", () => {
@@ -359,10 +358,10 @@ app.querySelector('.current-image').addEventListener("load", () => {
 });
 
 function circle(point) {
-    ctxClient.beginPath();
-    ctxClient.strokeStyle = point.color;
-    ctxClient.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
-    ctxClient.fill();
+  ctxClient.beginPath();
+  ctxClient.strokeStyle = point.color;
+  ctxClient.arc(...point, point.brushSize / 2, 0, 2 * Math.PI);
+  ctxClient.fill();
 }
 
 
@@ -440,11 +439,6 @@ function repaint () {
 function checkBadMenu() {
 // Проверяет не сломалось ли меню
   if (menu.offsetHeight > 70) {
-    // const menuCoor = menu.getBoundingClientRect();
-    // const clientWidth  = document.documentElement.clientWidth;
-    // const clientHeight  = document.documentElement.clientHeight;
-
-    // menu.style.left = `${clientWidth - menu.clientWidth - 6}px`;
     menu.style.left = (app.offsetWidth - menu.offsetWidth - 100) + 'px';
   }
 }
@@ -466,11 +460,10 @@ function publicateMask(url) {
   const img = new Image();
 
   img.addEventListener("load", function() {
-    function dada() {
+    setTimeout(() => {
       ctxServer.drawImage(img, 0, 0);
       console.log('load img')
-    }
-    setTimeout(dada, 500);
+    }, 500)
   }, false);
 
   img.src = url;
